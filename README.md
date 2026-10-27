@@ -67,3 +67,4 @@ The Overview groups saved users by university and charts new registrations over 
 - User details modal with name, university, major, Instagram and uploaded images
 - Individual image downloads and Download All Images ZIP action
 - Loading and API error states
+# mynder-Admin
