@@ -56,6 +56,22 @@ The admin sidebar links to a Payment Plan page. It reads the current price from 
 
 The backend documentation states that `/api/plan` currently has no authentication guard. The admin UI does not add a client-side credential in place of server authorization; protect plan management on the backend before exposing it publicly.
 
+## Staff attendance
+
+The staff sidebar's Attendance page uses the authenticated `/api/admin/time-tracking` endpoints to clock in, pause for breaks, resume, clock out, view paginated history, and review active-time totals. The API calculates work and break durations; break time is excluded from active hours. The page polls the current shift while it is open and displays timestamps in `Africa/Nairobi`.
+
+Staff must have an open shift to access the rest of the dashboard. Without an active shift, the dashboard routes them to Attendance and does not fetch the saved-users list; the Attendance page remains available so they can clock in. An active or paused shift grants access, while clocking out removes it.
+
+Configure the backend's `SHIFT_RESET_TIMEZONE=Africa/Nairobi` to match the dashboard's noon workday boundary. The server closes open shifts at noon, including paused shifts, and returns `reset_at`; its current-shift response is empty when there is no open shift. The UI relies on this server-side reset and does not send client timestamps or duration values. Ensure the backend protects these endpoints and scopes regular admins to their own records.
+
+The super-admin header includes a notifications panel placeholder. Live staff activity notifications are not implemented because the documented time-tracking API does not include an event feed or notification transport.
+
+## Assigned account records
+
+The staff sidebar's **My Accounts** page uses the authenticated `GET`, `POST`, `PATCH`, and `DELETE /api/admin/accounts` endpoints to list, create, update, and remove records owned by the signed-in staff member. It displays original credentials with reveal controls; account requests use `Cache-Control: no-store` and are not cached by the page. The super-admin sidebar's **Accounts** page manages all records, filters by staff owner, and can reassign ownership with `admin_id`.
+
+Both roles can import an atomic batch of 1–1000 account rows by pasting a JSON array. Duplicate handles are rejected unless **Skip duplicate handles** is enabled, which maps to `skip_existing: true`. Handles are unique per owner, case-insensitively. The backend must enforce account ownership and authorization, validate the documented field limits, encrypt stored passwords using `ACCOUNT_DATA_ENCRYPTION_KEY`, and return original passwords only to authorized account list/detail reads. The browser UI is not a security boundary.
+
 ## Overview analytics
 
 The Overview groups saved users by university and charts new registrations over the selected 7-, 30-, or 90-day period using each user's `created_at` timestamp. User lists are fetched across all API pages so the counts are not limited to the first page. These are registration counts, not active visits or sessions; the current API does not provide time-based service-access analytics.

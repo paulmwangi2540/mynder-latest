@@ -106,20 +106,37 @@ main.dashboard-overview svg text {
   color: #e6eef8;
 }
 
-.admin-logo-frame {
-  box-shadow:
-    0 0 0 1px rgba(106, 179, 255, 0.13) inset,
-    0 0 14px rgba(45, 142, 255, 0.23),
-    0 0 28px rgba(27, 214, 174, 0.12);
-  transition: box-shadow 220ms ease, border-color 220ms ease;
+.admin-theme button {
+  background-color: #16a34a !important;
+  border-color: #15803d !important;
+  color: #ffffff !important;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.admin-logo-frame:hover {
-  border-color: rgba(111, 201, 255, 0.72);
-  box-shadow:
-    0 0 0 1px rgba(106, 179, 255, 0.2) inset,
-    0 0 18px rgba(45, 142, 255, 0.36),
-    0 0 34px rgba(27, 214, 174, 0.2);
+.admin-theme button:not(:disabled):hover {
+  background-color: #15803d !important;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.55), 0 0 18px rgba(34, 197, 94, 0.55);
+}
+
+.admin-theme button.admin-sidebar-backdrop,
+.admin-theme button.admin-sidebar-backdrop:hover {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.admin-theme button.user-card {
+  background-color: #0c1b2b !important;
+}
+
+.admin-theme button.user-card:hover {
+  background-color: #102238 !important;
+  box-shadow: 0 8px 28px rgba(34, 83, 139, 0.16);
+}
+
+.admin-theme .user-details-modal button:not(:disabled):hover {
+  background-color: #183047 !important;
+  box-shadow: none !important;
 }
 
 .admin-theme .bg-white {

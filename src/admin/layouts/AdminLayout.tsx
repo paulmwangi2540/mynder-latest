@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
 import { useUsers } from "../hooks/useUsers";
+import { getCurrentShift } from "../services/timeTrackingService";
+import { useAdminAuthStore } from "../stores/adminAuthStore";
 
 export type AdminAudience = "super-admin" | "staff";
 
@@ -10,14 +13,36 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
   const [search, setSearch] = useState("");
   const [university, setUniversity] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { users } = useUsers();
   const location = useLocation();
+  const adminId = useAdminAuthStore((state) => state.admin?.id);
+  const currentShiftQuery = useQuery({
+    queryKey: ["admin-time-tracking", adminId ?? "", "current"],
+    queryFn: getCurrentShift,
+    enabled: audience === "staff" && Boolean(adminId),
+    staleTime: 0,
+    refetchInterval: (query) => query.state.data ? 5_000 : 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const staffShiftActive =
+    currentShiftQuery.data?.status === "active" ||
+    currentShiftQuery.data?.status === "paused";
+  const { users } = useUsers({
+    enabled: audience !== "staff" || staffShiftActive,
+  });
   const universities = [...new Set(users.map((user) => user.university).filter((name) => name.trim()))]
     .sort((left, right) => left.localeCompare(right));
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  if (
+    audience === "staff" &&
+    location.pathname !== "/admin/attendance" &&
+    !staffShiftActive
+  ) {
+    return <Navigate to="/admin/attendance" replace />;
+  }
 
   const exportUsers = () => {
     const csv = [
@@ -36,6 +61,7 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
     <div className="admin-theme min-h-screen bg-[#0b1828] text-slate-100">
       <AdminSidebar
         audience={audience}
+        staffShiftActive={staffShiftActive}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -46,6 +72,7 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
           university={university}
           universities={universities}
           onUniversityChange={setUniversity}
+          showSearch={audience === "super-admin" || location.pathname === "/admin/users"}
           showUniversityFilter={location.pathname === "/admin/users"}
           showExport={location.pathname === "/admin/users"}
           superAdmin={audience === "super-admin"}

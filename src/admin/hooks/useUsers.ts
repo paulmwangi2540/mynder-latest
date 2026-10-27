@@ -15,12 +15,12 @@ export function userListQueryOptions(adminId: string) {
   };
 }
 
-export function useUsers() {
+export function useUsers(options: { enabled?: boolean } = {}) {
   const adminId = useAdminAuthStore((state) => state.admin?.id);
   const accessToken = useAdminAuthStore((state) => state.accessToken);
   const query = useQuery({
     ...userListQueryOptions(adminId ?? ""),
-    enabled: Boolean(adminId && accessToken),
+    enabled: Boolean(adminId && accessToken && options.enabled !== false),
   });
 
   return {

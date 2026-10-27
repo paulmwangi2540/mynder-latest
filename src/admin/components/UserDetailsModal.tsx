@@ -315,7 +315,7 @@ useEffect(() => {
 
   return (
     <div className="safe-area-padding fixed inset-0 z-50 flex items-center justify-center bg-slate-800/50 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="modal-user-name" className="mobile-dialog-height relative flex w-full min-w-0 max-w-[805px] flex-col overflow-hidden rounded-xl border border-blue-100 bg-white shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="modal-user-name" className="user-details-modal mobile-dialog-height relative flex w-full min-w-0 max-w-[805px] flex-col overflow-hidden rounded-xl border border-blue-100 bg-white shadow-2xl">
         <button onClick={onClose} aria-label="Close user details" className="absolute right-4 top-4 z-10 rounded-lg p-1.5 text-myinder-blue transition hover:bg-blue-50"><X size={24}/></button>
         <div className="flex shrink-0 items-center gap-5 border-b border-blue-100 px-6 py-7 pr-14 sm:px-8">
           <ColorfulIcon Icon={University} tone="orange" size={40} className="h-20 w-20 rounded-full" />

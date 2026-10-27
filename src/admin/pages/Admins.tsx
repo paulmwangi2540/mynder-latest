@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { CheckCircle2, Pencil, Plus, RefreshCw, Search, Users } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Pencil, Plus, RefreshCw, Search, Users } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import {
@@ -87,6 +87,7 @@ export default function Admins() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [schoolIds, setSchoolIds] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AdminAccount | null>(null);
@@ -388,7 +389,29 @@ export default function Admins() {
           </div>
           <div>
             <label htmlFor="new-admin-password" className="mb-2 block text-sm font-semibold text-myinder-navy">Password</label>
-            <Input id="new-admin-password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Use 12–128 characters" />
+            <div className="relative">
+              <Input
+                id="new-admin-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Use 12–128 characters"
+                className="pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-2 flex items-center justify-center rounded-lg px-2 text-myinder-muted transition hover:bg-blue-50 hover:text-myinder-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             <p className="mt-2 text-xs text-myinder-muted">Passwords must be 12–128 characters and cannot be all whitespace.</p>
           </div>
           <div className="md:row-span-2">

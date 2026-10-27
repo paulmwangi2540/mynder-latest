@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import LoadingState from "../components/shared/LoadingState";
 import RoleAdminLayout from "../admin/layouts/RoleAdminLayout";
 import SuperAdminLayout from "../admin/roles/SuperAdminLayout";
 import Dashboard from "../admin/pages/Dashboard";
@@ -10,8 +12,11 @@ import Invoices from "../admin/pages/Invoices";
 import NotFound from "../admin/pages/NotFound";
 import AdminLogin from "../admin/pages/AdminLogin";
 import Admins from "../admin/pages/Admins";
+import Attendance from "../admin/pages/Attendance";
 import RequireAdmin from "../admin/components/RequireAdmin";
 import RequireSuperAdmin from "../admin/components/RequireSuperAdmin";
+
+const Accounts = lazy(() => import("../admin/pages/Accounts"));
 
 export default function App() {
   return (
@@ -24,6 +29,8 @@ export default function App() {
           <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/users/:userId" element={<UserDetails />} />
+          <Route path="/admin/attendance" element={<Attendance />} />
+          <Route path="/admin/accounts" element={<Suspense fallback={<LoadingState label="Loading accounts..." />}><Accounts /></Suspense>} />
           <Route path="*" element={<NotFound />} />
         </Route>
         <Route element={<RequireSuperAdmin />}>

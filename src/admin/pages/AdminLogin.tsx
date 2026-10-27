@@ -48,7 +48,7 @@ export default function AdminLogin() {
     <main className="admin-theme flex min-h-screen items-center justify-center bg-[#0b1828] px-4 py-12">
       <section className="w-full max-w-md rounded-2xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-8 flex justify-center">
-          <Logo admin />
+          <Logo />
         </div>
         <div className="mb-7 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-myinder-blue">

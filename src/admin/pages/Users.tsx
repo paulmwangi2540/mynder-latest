@@ -210,7 +210,7 @@ export default function Users() {
 
         {visibleUsers.length ? <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 2xl:grid-cols-4">
           {visibleUsers.map((user) => (
-            <button key={user.id} type="button" onClick={() => setSelectedUser(user)} className="min-w-0 rounded-xl border border-blue-100 bg-white p-4 text-left shadow-[0_1px_3px_rgba(40,90,150,0.025)] transition hover:border-blue-300 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+            <button key={user.id} type="button" onClick={() => setSelectedUser(user)} className="user-card min-w-0 rounded-xl border border-blue-100 bg-white p-4 text-left shadow-[0_1px_3px_rgba(40,90,150,0.025)] transition hover:border-blue-300 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
               <div className="min-w-0">
                 <h2 className="truncate pl-1 text-sm font-bold text-myinder-navy">{user.name}</h2>
                 <p className="mt-2 flex min-w-0 items-center gap-2.5 text-xs text-myinder-muted sm:text-[13px]"><ColorfulIcon Icon={University} tone="orange" size={17} badge={false}/><span className="truncate">{user.university}</span></p>
