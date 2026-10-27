@@ -13,7 +13,7 @@ const links = [
   { label: "Overview", href: "/admin/dashboard", Icon: Home, tone: "blue" as const },
   { label: "Users", href: "/admin/users", Icon: UsersRound, tone: "purple" as const },
   { label: "Accounts", href: "/admin/accounts", Icon: KeyRound, tone: "orange" as const },
-  { label: "Attendance", href: "/admin/attendance", Icon: Clock3, tone: "green" as const },
+  { label: "My workspace", href: "/admin/attendance", Icon: Clock3, tone: "green" as const },
   { label: "Universities", href: "/admin/universities", Icon: University, tone: "orange" as const },
   { label: "Invoices", href: "/admin/invoices", Icon: ReceiptText, tone: "green" as const },
   { label: "Payment plan", href: "/admin/plan", Icon: CreditCard, tone: "green" as const },
@@ -31,7 +31,7 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
   const admin = useAdminAuthStore((state) => state.admin);
   const superAdmin = audience === "super-admin";
   const signOut = useAdminAuthStore((state) => state.signOut);
-  const updateProfile = useAdminAuthStore((state) => state.updateProfile);
+  // const updateProfile = useAdminAuthStore((state) => state.updateProfile);
   const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileName, setProfileName] = useState("");
@@ -46,6 +46,7 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
   };
 
   const startProfileEdit = () => {
+    if (!superAdmin) return;
     setProfileName(admin?.name ?? "");
     setProfileEmail(admin?.email ?? "");
     setProfileError("");
@@ -69,7 +70,7 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
     setSavingProfile(true);
     setProfileError("");
     try {
-      await updateProfile({ name: trimmedName, email: trimmedEmail });
+      // await updateProfile({ name: trimmedName, email: trimmedEmail });
       setEditingProfile(false);
     } catch (cause: unknown) {
       setProfileError(cause instanceof Error ? cause.message : "Unable to update your admin details.");
@@ -126,7 +127,7 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
                 {superAdmin ? "Super admin" : "Staff"} · {admin?.email ?? "Account"}
               </p>
             </div>
-            {(superAdmin || staffShiftActive) && (
+            {superAdmin && (
               <button type="button" onClick={startProfileEdit} aria-label="Edit my admin details" title="Edit my details" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 hover:text-white">
                 <Pencil size={17} />
               </button>
@@ -137,7 +138,7 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
           </div>
         </div>
       </aside>
-      {editingProfile && (
+     {editingProfile && (
         <Modal>
           <section
             role="dialog"

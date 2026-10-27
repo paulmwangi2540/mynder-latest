@@ -154,6 +154,7 @@ function QueryError({ message }: { message: string }) {
 }
 
 export default function Attendance() {
+  const staffName = useAdminAuthStore((state) => state.admin?.name?.trim());
   const adminId = useAdminAuthStore((state) => state.admin?.id);
   const queryClient = useQueryClient();
   const [now, setNow] = useState(Date.now());
@@ -247,10 +248,11 @@ export default function Attendance() {
     <main className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Staff tools</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white">Attendance</h1>
+         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white">
+            Welcome back{staffName ? `, ${staffName}` : ""} <b>!</b>👋
+          </h1>
           <p className="mt-2 text-sm text-slate-300">
-            Track your work time and breaks. The workday resets at 12:00 PM Nairobi time.
+            Track your activities here. The workday resets at 12:00 PM Nairobi time.
           </p>
         </div>
         <Button
