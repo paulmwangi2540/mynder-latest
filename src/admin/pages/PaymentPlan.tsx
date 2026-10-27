@@ -95,7 +95,7 @@ export default function PaymentPlan() {
   if (!plan) {
     return (
       <main className="mx-auto max-w-3xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-myinder-navy">Payment Plan</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">Payment Plan</h1>
         <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error || "Unable to load the current payment plan."}
         </p>
@@ -109,8 +109,8 @@ export default function PaymentPlan() {
   return (
     <main className="mx-auto max-w-3xl">
       <div className="mb-7">
-        <h1 className="text-3xl font-extrabold tracking-tight text-myinder-navy">Payment Plan</h1>
-        <p className="mt-1 text-sm text-myinder-muted">Review the current plan and publish a new price.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">Payment Plan</h1>
+        <p className="mt-1 text-sm text-slate-300">Review the current plan and publish a new price.</p>
       </div>
 
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-8">

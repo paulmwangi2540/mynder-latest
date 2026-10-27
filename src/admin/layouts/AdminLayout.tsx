@@ -3,14 +3,14 @@ import { Outlet, useLocation } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
 import { useUsers } from "../hooks/useUsers";
-import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
 
-export default function AdminLayout() {
+export type AdminAudience = "super-admin" | "staff";
+
+export default function AdminLayout({ audience }: { audience: AdminAudience }) {
   const [search, setSearch] = useState("");
   const [university, setUniversity] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { users } = useUsers();
-  const admin = useAdminAuthStore((state) => state.admin);
   const location = useLocation();
   const universities = [...new Set(users.map((user) => user.university).filter((name) => name.trim()))]
     .sort((left, right) => left.localeCompare(right));
@@ -33,8 +33,12 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbfdff]">
-      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="admin-theme min-h-screen bg-[#0b1828] text-slate-100">
+      <AdminSidebar
+        audience={audience}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <div className="min-h-screen min-w-0 lg:pl-[272px]">
         <AdminHeader
           search={search}
@@ -44,7 +48,7 @@ export default function AdminLayout() {
           onUniversityChange={setUniversity}
           showUniversityFilter={location.pathname === "/admin/users"}
           showExport={location.pathname === "/admin/users"}
-          superAdmin={isSuperAdmin(admin)}
+          superAdmin={audience === "super-admin"}
           onExport={exportUsers}
           onMenuClick={() => setSidebarOpen(true)}
           sidebarOpen={sidebarOpen}

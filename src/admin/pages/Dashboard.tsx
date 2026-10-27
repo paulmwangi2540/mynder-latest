@@ -411,10 +411,10 @@ export default function Dashboard() {
       <header className="dashboard-reveal flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-myinder-navy sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
             Welcome back, {admin?.name?.split(" ")[0] || "Admin"}! <span aria-hidden="true">👋</span>
           </h1>
-          <p className="mt-1 text-sm text-myinder-muted">Here’s what’s happening with your MyLnder platform today.</p>
+          <p className="mt-1 text-sm text-slate-300">Here’s what’s happening with your MyLnder platform today.</p>
         </div>
         <p className="w-fit rounded-xl border border-orange-100 bg-white px-3 py-2 text-xs font-semibold text-myinder-muted shadow-sm sm:text-sm">
           {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(now)}

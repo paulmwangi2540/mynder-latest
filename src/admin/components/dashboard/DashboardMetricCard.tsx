@@ -94,7 +94,7 @@ export default function DashboardMetricCard({
       <div className="flex min-w-0 flex-1 flex-col">
         <div>
           <p className="text-[11px] font-semibold leading-tight text-myinder-muted sm:text-sm">{title}</p>
-          <p className="mt-1 break-words text-xl font-extrabold leading-tight tabular-nums text-myinder-navy sm:mt-2 sm:text-3xl">{value}</p>
+          <p className="dashboard-metric-value mt-1 break-words text-xl font-extrabold leading-tight tabular-nums text-myinder-navy sm:mt-2 sm:text-3xl">{value}</p>
           <p className="mt-1 text-[10px] leading-tight text-myinder-muted sm:mt-2 sm:text-xs">{detail}</p>
         </div>
         <div className="flex min-h-0 items-end justify-end">

@@ -207,11 +207,11 @@ export default function Universities() {
   return (
     <main className="mx-auto max-w-4xl">
       <div className="mb-7">
-        <h1 className="text-3xl font-extrabold tracking-tight text-myinder-navy">
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">
           Universities
         </h1>
 
-        <p className="mt-1 text-sm text-myinder-muted">
+        <p className="mt-1 text-sm text-slate-300">
           Manage the universities available in the campus community.
         </p>
       </div>

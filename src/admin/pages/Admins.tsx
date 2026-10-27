@@ -181,7 +181,7 @@ export default function Admins() {
       setSchoolIds([]);
       setPage(1);
       setSearch("");
-      setSuccess(`Admin account created for ${created.email}.`);
+      setSuccess(`Staff account created for ${created.email}.`);
       setAdmins((current) => [created, ...current.filter((admin) => admin.id !== created.id)]);
     } catch (cause: unknown) {
       setActionError(cause instanceof Error ? cause.message : "Unable to add the admin.");
@@ -242,10 +242,10 @@ export default function Admins() {
     <section className="mx-auto max-w-6xl space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-myinder-blue">Administration</p>
-          <h1 className="mt-2 text-2xl font-bold text-myinder-navy sm:text-3xl">Manage admins</h1>
-          <p className="mt-2 text-sm text-myinder-muted">
-            Create regular admins, assign their schools, and manage their access.
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Administration</p>
+          <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">Manage staff</h1>
+          <p className="mt-2 text-sm text-slate-300">
+            Create staff accounts, assign their schools, and manage their access.
           </p>
         </div>
         <Button variant="secondary" onClick={() => void refreshLists()} disabled={refreshing || schoolsLoading}>
@@ -268,7 +268,7 @@ export default function Admins() {
               <Users size={20} />
             </span>
             <div>
-              <h2 className="font-bold text-myinder-navy">Administrator accounts</h2>
+              <h2 className="font-bold text-myinder-navy">Admin accounts</h2>
               <p className="text-xs text-myinder-muted">Page {page} of {totalPages}</p>
             </div>
           </div>
@@ -282,7 +282,7 @@ export default function Admins() {
                 setSearch(event.target.value);
               }}
               placeholder="Search name or email"
-              aria-label="Search admins"
+              aria-label="Search staff or super admins"
               className="w-full rounded-xl border border-blue-100 bg-white py-2.5 pl-10 pr-3 text-base text-myinder-navy outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50 sm:text-sm"
             />
           </label>
@@ -327,7 +327,7 @@ export default function Admins() {
                         </td>
                         <td className="px-5 py-4">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${superAdmin ? "bg-orange-50 text-orange-800" : "bg-blue-50 text-blue-800"}`}>
-                            {superAdmin ? "Super admin" : "Admin"}
+                            {superAdmin ? "Super admin" : "Staff"}
                           </span>
                         </td>
                         <td className="max-w-sm px-5 py-4 text-myinder-muted">{formatAdminSchools(admin)}</td>
@@ -373,7 +373,7 @@ export default function Admins() {
             <Plus size={22} />
           </div>
           <div>
-            <h2 className="font-bold text-myinder-navy">Add a regular admin</h2>
+            <h2 className="font-bold text-myinder-navy">Add staff</h2>
             <p className="mt-1 text-sm text-myinder-muted">New accounts only receive access to the selected schools.</p>
           </div>
         </div>

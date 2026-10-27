@@ -31,12 +31,12 @@ export default function AdminHeader({
   sidebarOpen,
 }: Props) {
   return (
-    <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center gap-x-3 gap-y-2 border-b border-blue-100 bg-white/95 px-4 py-3 backdrop-blur sm:min-h-[82px] sm:flex-nowrap sm:gap-3 sm:py-0 sm:px-8">
-      <button type="button" onClick={onMenuClick} aria-label="Open navigation menu" aria-expanded={sidebarOpen} aria-controls="admin-sidebar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-myinder-navy hover:bg-blue-50 lg:hidden">
+    <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-700 bg-[#0b1828]/95 px-4 py-3 text-white backdrop-blur sm:min-h-[82px] sm:flex-nowrap sm:gap-3 sm:py-0 sm:px-8">
+      <button type="button" onClick={onMenuClick} aria-label="Open navigation menu" aria-expanded={sidebarOpen} aria-controls="admin-sidebar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white hover:bg-slate-800 lg:hidden">
         <Menu size={24} />
       </button>
       <div className="flex min-w-0 items-center lg:hidden">
-        <Logo />
+        <Logo admin />
       </div>
       <div className="order-3 flex w-full min-w-0 basis-full items-center gap-2 sm:order-none sm:ml-auto sm:basis-auto sm:max-w-[680px] sm:flex-1">
         <div className="min-w-0 flex-1">
@@ -58,7 +58,7 @@ export default function AdminHeader({
             value={university}
             onChange={(event) => onUniversityChange(event.target.value)}
             aria-label="Filter users by university"
-            className="w-[min(36vw,220px)] shrink-0 rounded-xl border border-blue-100 bg-white px-3 py-3 text-base text-myinder-navy outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-50 sm:text-sm"
+            className="w-[min(36vw,220px)] shrink-0 rounded-xl border border-slate-600 bg-slate-900 px-3 py-3 text-base text-white outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-900 sm:text-sm"
           >
             <option value="">All universities</option>
             {universities.map((name) => <option key={name} value={name}>{name}</option>)}

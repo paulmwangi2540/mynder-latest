@@ -186,8 +186,8 @@ export default function Invoices() {
             <FileText size={24} />
           </span>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-myinder-navy">Invoices</h1>
-            <p className="mt-1 text-sm text-myinder-muted">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">Invoices</h1>
+            <p className="mt-1 text-sm text-slate-300">
               Invoices, associated users, payment statuses, and Stripe links.
             </p>
           </div>

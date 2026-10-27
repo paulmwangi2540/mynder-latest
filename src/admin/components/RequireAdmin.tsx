@@ -96,7 +96,7 @@ export default function RequireAdmin() {
 
   if (checkingAdmin || checkedKey !== checkKey) {
     return (
-      <main className="flex min-h-screen items-center justify-center text-sm text-myinder-muted">
+      <main className="flex min-h-screen items-center justify-center bg-[#0b1828] text-sm text-slate-300">
         Checking administrator access...
       </main>
     );
@@ -104,8 +104,8 @@ export default function RequireAdmin() {
 
   if (refreshError) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
-        <p role="alert" className="text-sm text-red-700">{refreshError}</p>
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0b1828] px-4 text-center">
+        <p role="alert" className="text-sm text-red-300">{refreshError}</p>
         <button
           type="button"
           onClick={() => {
@@ -122,7 +122,7 @@ export default function RequireAdmin() {
               })
               .finally(() => setCheckingAdmin(false));
           }}
-          className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-myinder-navy hover:bg-blue-100"
+          className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600"
         >
           Try again
         </button>

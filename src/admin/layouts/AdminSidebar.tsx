@@ -6,7 +6,8 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Modal from "../../components/ui/Modal";
 import ColorfulIcon from "../components/ColorfulIcon";
-import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
+import { useAdminAuthStore } from "../stores/adminAuthStore";
+import type { AdminAudience } from "./AdminLayout";
 
 const links = [
   { label: "Overview", href: "/admin/dashboard", Icon: Home, tone: "blue" as const },
@@ -17,11 +18,11 @@ const links = [
   { label: "Admins", href: "/admin/admins", Icon: UserPlus, tone: "purple" as const },
 ];
 
-type Props = { open: boolean; onClose: () => void };
+type Props = { audience: AdminAudience; open: boolean; onClose: () => void };
 
-export default function AdminSidebar({ open, onClose }: Props) {
+export default function AdminSidebar({ audience, open, onClose }: Props) {
   const admin = useAdminAuthStore((state) => state.admin);
-  const superAdmin = isSuperAdmin(admin);
+  const superAdmin = audience === "super-admin";
   const signOut = useAdminAuthStore((state) => state.signOut);
   const updateProfile = useAdminAuthStore((state) => state.updateProfile);
   const navigate = useNavigate();
@@ -89,31 +90,33 @@ export default function AdminSidebar({ open, onClose }: Props) {
         onClick={onClose}
         className={`fixed inset-0 z-30 bg-slate-900/40 transition-opacity lg:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
       />
-      <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col border-r border-blue-100 bg-white px-3 py-6 shadow-xl transition-transform duration-200 lg:z-20 lg:w-[272px] lg:translate-x-0 lg:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} lg:visible`}>
+      <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col border-r border-slate-700 bg-[#0b1828] px-3 py-6 text-white shadow-xl transition-transform duration-200 lg:z-20 lg:w-[272px] lg:translate-x-0 lg:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} lg:visible`}>
         <div className="flex items-center justify-between px-3">
-          <Logo />
+          <Logo admin />
           <button type="button" onClick={onClose} aria-label="Close navigation menu" className="rounded-lg p-2 text-myinder-navy hover:bg-blue-50 lg:hidden">
             <X size={22} />
           </button>
         </div>
-        <nav aria-label="Admin navigation" className="mt-10 space-y-2">
+        <nav aria-label={superAdmin ? "Super admin navigation" : "Staff navigation"} className="mt-10 space-y-2">
           {links.filter((link) => superAdmin || link.href === "/admin/users").map(({ label, href, Icon, tone }) => (
-            <NavLink key={href} to={href} onClick={onClose} className={({ isActive }) => `flex items-center gap-5 rounded-xl px-4 py-3.5 text-sm font-semibold transition ${isActive ? "bg-myinder-orange text-white shadow-sm" : "text-myinder-navy hover:bg-blue-50"}`}>
+            <NavLink key={href} to={href} onClick={onClose} className={({ isActive }) => `flex items-center gap-5 rounded-xl px-4 py-3.5 text-sm font-semibold transition ${isActive ? "bg-myinder-orange text-white shadow-sm" : "text-slate-200 hover:bg-slate-800"}`}>
               <ColorfulIcon Icon={Icon} tone={tone} size={23} badge={false} /> {label}
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto border-t border-blue-100 px-3 pt-4">
+        <div className="mt-auto border-t border-slate-700 px-3 pt-4">
           <div className="flex items-center gap-3">
             <ColorfulIcon Icon={CircleUserRound} tone="blue" size={34} className="h-12 w-12 rounded-full" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-myinder-navy">{admin?.name ?? "Admin"}</p>
-              <p className="mt-0.5 truncate text-xs text-myinder-muted">{admin?.email ?? "Administrator"}</p>
+              <p className="truncate text-sm font-bold text-white">{admin?.name ?? "Staff"}</p>
+              <p className="mt-0.5 truncate text-xs text-slate-300">
+                {superAdmin ? "Super admin" : "Staff"} · {admin?.email ?? "Account"}
+              </p>
             </div>
-            <button type="button" onClick={startProfileEdit} aria-label="Edit my admin details" title="Edit my details" className="rounded-lg p-2 text-myinder-muted hover:bg-blue-50 hover:text-myinder-navy">
+            <button type="button" onClick={startProfileEdit} aria-label="Edit my admin details" title="Edit my details" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 hover:text-white">
               <Pencil size={17} />
             </button>
-            <button type="button" onClick={handleSignOut} aria-label="Sign out" title="Sign out" className="rounded-lg p-2 text-myinder-muted hover:bg-blue-50 hover:text-myinder-navy">
+            <button type="button" onClick={handleSignOut} aria-label="Sign out" title="Sign out" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 hover:text-white">
               <LogOut size={18} />
             </button>
           </div>

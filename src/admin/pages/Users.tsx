@@ -126,10 +126,10 @@ export default function Users() {
         {error && <p role="alert" className="mb-4 text-sm text-amber-700">Showing cached users; refresh failed: {error}</p>}
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-myinder-navy sm:text-[34px]">Saved Users</h1>
-            <p className="mt-0.5 text-sm text-myinder-muted sm:text-base">View all user data submitted through the campus community form.</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-[34px]">Saved Users</h1>
+            <p className="mt-0.5 text-sm text-slate-300 sm:text-base">View all user data submitted through the campus community form.</p>
           </div>
-          <p className="pb-1 text-sm font-medium text-myinder-muted">Total Users: {users.length}</p>
+          <p className="pb-1 text-sm font-medium text-slate-300">Total Users: {users.length}</p>
         </div>
 
         <section className="mb-5 flex flex-wrap gap-x-8 gap-y-4 rounded-xl border border-blue-100 bg-white p-4">
