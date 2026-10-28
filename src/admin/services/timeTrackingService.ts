@@ -238,6 +238,38 @@ export async function getTimeHistory(
   return { items: payload.items.map(mapShift), ...pageInfo };
 }
 
+function getNairobiDate(value: string): string {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) {
+    throw new Error("The time-tracking API returned an invalid shift timestamp.");
+  }
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: RESET_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(timestamp);
+  const values = Object.fromEntries(parts.map(({ type, value: part }) => [type, part]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export async function getTimeHistoryForDate(
+  date: string,
+  adminId?: string,
+): Promise<TimeShift[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error("Select a valid shift-history date.");
+  }
+
+  const firstPage = await getTimeHistory(1, adminId);
+  const shifts = firstPage.items.filter((shift) => getNairobiDate(shift.clocked_in_at) === date);
+  for (let page = 2; page <= firstPage.total_pages; page += 1) {
+    const historyPage = await getTimeHistory(page, adminId);
+    shifts.push(...historyPage.items.filter((shift) => getNairobiDate(shift.clocked_in_at) === date));
+  }
+  return shifts;
+}
+
 export async function getTimeSummary(adminId?: string): Promise<TimeSummary> {
   const query = new URLSearchParams();
   if (adminId) query.set("admin_id", adminId);

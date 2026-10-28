@@ -8,6 +8,7 @@ import ResolvedImage from "./ResolvedImage";
 import { resolveImageUrl } from "../services/imageService";
 import InvoicePanel from "./InvoicePanel";
 import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
 import { getUniversities } from "../services/universitiesService";
 import {
   generateAdminUserPoster,
@@ -38,6 +39,7 @@ const [invoiceError, setInvoiceError] = useState("");
 const [isPosted, setIsPosted] = useState(false);
 const [postingStatusLoading, setPostingStatusLoading] = useState(false);
 const [postingStatusError, setPostingStatusError] = useState("");
+  useToastFeedback(error || posterError || invoiceError || postingStatusError);
 const adminId = useAdminAuthStore((state) => state.admin?.id);
 const superAdmin = isSuperAdmin(useAdminAuthStore((state) => state.admin));
 const queryClient = useQueryClient();
@@ -367,11 +369,6 @@ useEffect(() => {
     </button>
   </div>
 
-  {postingStatusError && (
-    <p role="alert" className="mt-3 text-sm text-red-600">
-      {postingStatusError}
-    </p>
-  )}
 </section>
   <InvoicePanel invoiceNumber={invoiceNumber} loadDetails={superAdmin} />
 
@@ -381,11 +378,6 @@ useEffect(() => {
     </p>
   )}
 
-  {superAdmin && invoiceError && (
-    <p role="alert" className="mt-2 text-sm text-red-600">
-      {invoiceError}
-    </p>
-  )}
 </div>
           {superAdmin && <section className="mb-6 rounded-lg border border-blue-100 bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -477,11 +469,6 @@ useEffect(() => {
                 {posterWarning}
               </p>
             )}
-            {posterError && (
-              <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-                {posterError}
-              </p>
-            )}
             {posterUrl && (
               <div className="mt-4 border-t border-blue-50 pt-4">
                 <img
@@ -508,7 +495,6 @@ useEffect(() => {
               {downloading ? "Preparing ZIP..." : `Download All Images (${user.images.length})`}
             </button>
           </div>
-          {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {user.images.length ? (
             <div className="grid grid-cols-1 gap-4 pb-2 sm:grid-cols-2 md:grid-cols-3">
               {user.images.map((url, index) => (

@@ -17,6 +17,8 @@ import RequireAdmin from "../admin/components/RequireAdmin";
 import RequireSuperAdmin from "../admin/components/RequireSuperAdmin";
 
 const Accounts = lazy(() => import("../admin/pages/Accounts"));
+const Expenses = lazy(() => import("../admin/pages/Expenses"));
+const Reports = lazy(() => import("../admin/pages/Reports"));
 
 export default function App() {
   return (
@@ -27,6 +29,10 @@ export default function App() {
         <Route element={<RoleAdminLayout />}>
           <Route path="/" element={<Navigate to="/admin/users" replace />} />
           <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/staff" element={<Navigate to="/staff/attendance" replace />} />
+          <Route path="/staff/attendance" element={<Attendance />} />
+          <Route path="/staff/users" element={<Users />} />
+          <Route path="/staff/users/:userId" element={<UserDetails />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/users/:userId" element={<UserDetails />} />
           <Route path="/admin/attendance" element={<Attendance />} />
@@ -38,6 +44,8 @@ export default function App() {
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/universities" element={<Universities />} />
             <Route path="/admin/invoices" element={<Invoices />} />
+            <Route path="/admin/expenses" element={<Suspense fallback={<LoadingState label="Loading expenses..." />}><Expenses /></Suspense>} />
+            <Route path="/admin/reports" element={<Suspense fallback={<LoadingState label="Loading reports..." />}><Reports /></Suspense>} />
             <Route path="/admin/plan" element={<PaymentPlan />} />
             <Route path="/admin/admins" element={<Admins />} />
           </Route>

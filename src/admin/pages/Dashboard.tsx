@@ -22,6 +22,7 @@ import { getUniversities } from "../services/universitiesService";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
 import LoadingState from "../../components/shared/LoadingState";
 import type { SavedUser } from "../types/admin.types";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 type Status = UserInvoice["status"];
 
@@ -310,6 +311,12 @@ export default function Dashboard() {
     enabled: Boolean(adminId && accessToken),
     staleTime: 60_000,
   });
+  useToastFeedback(
+    error ||
+      invoicesQuery.error?.message ||
+      paymentStatusesQuery.error?.message ||
+      universitiesQuery.error?.message,
+  );
 
   const invoices = invoicesQuery.data ?? [];
   const paymentStatuses = paymentStatusesQuery.data ?? new Map<string, Status>();
@@ -396,7 +403,7 @@ export default function Dashboard() {
   }, [loading, users.length]);
 
   if (loading) return <LoadingState />;
-  if (error && !hasData) return <p role="alert" className="py-10 text-center text-red-600">{error}</p>;
+  if (error && !hasData) return <p className="py-10 text-center text-slate-400">Dashboard user data is unavailable.</p>;
 
   const totalRevenue = invoicesQuery.isError || paymentStatusesQuery.isError
     ? "Unavailable"
@@ -406,7 +413,6 @@ export default function Dashboard() {
   return (
     <main ref={dashboardRef} className="dashboard-overview -mx-4 -mt-5 min-h-[calc(100dvh-82px)] w-[calc(100%+2rem)] px-4 py-5 sm:-mx-7 sm:w-[calc(100%+3.5rem)] sm:px-7 lg:-mx-8 lg:w-[calc(100%+4rem)] lg:px-8">
       <div className="mx-auto w-full max-w-[1600px] space-y-5 sm:space-y-6">
-      {error && <p role="alert" className="dashboard-reveal rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Showing current users</p>}
 
       <header className="dashboard-reveal flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -440,15 +446,6 @@ export default function Dashboard() {
         revenueTrend={revenuePoints.map((point) => point.amount)}
         revenuePeriod={period}
       />
-
-      {(invoicesQuery.isError || paymentStatusesQuery.isError || universitiesQuery.isError) && (
-        <p role="alert" className="dashboard-reveal rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Some overview totals could not be loaded.
-          {invoicesQuery.isError && " Invoice totals are unavailable."}
-          {paymentStatusesQuery.isError && " Payment statuses are unavailable."}
-          {universitiesQuery.isError && " School totals are unavailable."}
-        </p>
-      )}
 
       <section className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
         <DashboardRevenueChart
@@ -539,7 +536,7 @@ export default function Dashboard() {
             {invoicesQuery.isLoading ? (
               <p className="px-4 py-6 text-center text-sm text-myinder-muted">Loading transactions...</p>
             ) : invoicesQuery.isError ? (
-              <p role="alert" className="px-4 py-6 text-center text-sm text-amber-800">Transactions are unavailable.</p>
+              <p className="px-4 py-6 text-center text-sm text-myinder-muted">Transactions are unavailable.</p>
             ) : recentInvoices.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[440px] text-left text-[11px]">

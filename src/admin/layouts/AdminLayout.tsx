@@ -26,6 +26,12 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
   const staffShiftActive =
     currentShiftQuery.data?.status === "active" ||
     currentShiftQuery.data?.status === "paused";
+  const isAttendancePage =
+    location.pathname === "/admin/attendance" ||
+    location.pathname === "/staff/attendance";
+  const isUsersPage =
+    location.pathname === "/admin/users" ||
+    location.pathname === "/staff/users";
   const { users } = useUsers({
     enabled: audience !== "staff" || staffShiftActive,
   });
@@ -38,7 +44,7 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
 
   if (
     audience === "staff" &&
-    location.pathname !== "/admin/attendance" &&
+    !isAttendancePage &&
     !staffShiftActive
   ) {
     return <Navigate to="/admin/attendance" replace />;
@@ -72,9 +78,9 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
           university={university}
           universities={universities}
           onUniversityChange={setUniversity}
-          showSearch={audience === "super-admin" || location.pathname === "/admin/users"}
-          showUniversityFilter={location.pathname === "/admin/users"}
-          showExport={location.pathname === "/admin/users"}
+          showSearch={audience === "super-admin" || isUsersPage}
+          showUniversityFilter={isUsersPage}
+          showExport={isUsersPage}
           superAdmin={audience === "super-admin"}
           onExport={exportUsers}
           onMenuClick={() => setSidebarOpen(true)}

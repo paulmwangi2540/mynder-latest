@@ -6,6 +6,7 @@ import LoadingState from "../../components/shared/LoadingState";
 import { createPlanVersion, getCurrentPlan } from "../services/planService";
 import type { PaymentPlan } from "../services/planService";
 import ColorfulIcon from "../components/ColorfulIcon";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 const MAX_PLAN_AMOUNT = 99_999_999.99;
 
@@ -23,6 +24,7 @@ export default function PaymentPlan() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  useToastFeedback(error, success);
 
   useEffect(() => {
     let active = true;
@@ -96,9 +98,6 @@ export default function PaymentPlan() {
     return (
       <main className="mx-auto max-w-3xl">
         <h1 className="text-3xl font-extrabold tracking-tight text-white">Payment Plan</h1>
-        <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error || "Unable to load the current payment plan."}
-        </p>
         <Button variant="secondary" className="mt-4" onClick={() => window.location.reload()}>
           <RefreshCw size={17} /> Retry
         </Button>
@@ -172,8 +171,6 @@ export default function PaymentPlan() {
           <p id="plan-amount-help" className="mt-2 text-xs leading-5 text-myinder-muted">
             Publishing creates a new current price version. Existing purchases keep the price they were created with.
           </p>
-          {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          {success && <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{success}</p>}
         </form>
       </section>
     </main>

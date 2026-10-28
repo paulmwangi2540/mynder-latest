@@ -58,13 +58,19 @@ The backend documentation states that `/api/plan` currently has no authenticatio
 
 ## Staff attendance
 
-The staff sidebar's Attendance page uses the authenticated `/api/admin/time-tracking` endpoints to clock in, pause for breaks, resume, clock out, view paginated history, and review active-time totals. The API calculates work and break durations; break time is excluded from active hours. The page polls the current shift while it is open and displays timestamps in `Africa/Nairobi`.
+The staff sidebar's Attendance page uses the authenticated `/api/admin/time-tracking` endpoints to clock in, pause for breaks, resume, clock out, review one day's shift history, and review active-time totals. Shift history defaults to the current date and can be filtered to another date. The API calculates work and break durations; break time is excluded from active hours. The page polls the current shift while it is open and displays timestamps in `Africa/Nairobi`.
 
 Staff must have an open shift to access the rest of the dashboard. Without an active shift, the dashboard routes them to Attendance and does not fetch the saved-users list; the Attendance page remains available so they can clock in. An active or paused shift grants access, while clocking out removes it.
 
 Configure the backend's `SHIFT_RESET_TIMEZONE=Africa/Nairobi` to match the dashboard's noon workday boundary. The server closes open shifts at noon, including paused shifts, and returns `reset_at`; its current-shift response is empty when there is no open shift. The UI relies on this server-side reset and does not send client timestamps or duration values. Ensure the backend protects these endpoints and scopes regular admins to their own records.
 
-The super-admin header includes a notifications panel placeholder. Live staff activity notifications are not implemented because the documented time-tracking API does not include an event feed or notification transport.
+The super-admin and staff headers read the authenticated admin's notification inbox from `/api/admin/notifications`, check the unread count every 20 seconds, and support pagination, marking individual items read/unread, and marking all items read. A newly received notification animates the bell and can trigger a device notification after the admin grants browser permission. The browser/operating system uses its configured notification sound and settings; the dashboard does not synthesize or select a sound. Notification requests are uncached and rely on the backend to enforce recipient-only access and transactional event creation.
+
+The staff Attendance workspace shows daily sales totals by Zelle, Cash App, Venmo, PayPal, Apple Pay, and Other above Shift history. Sales are recorded against the staff member's assigned universities through the authenticated `/api/sales` endpoints. The form collects payment method, amount, and sale date. The backend sets the sale time and returns it in sale responses; `time` is intentionally omitted from create requests because the API rejects it as an input field.
+
+The super-admin-only Expenses page manages manual expenses, monthly rent, and staff salary payments using the authenticated `/api/expenses/manual`, `/api/expenses/rent`, and `/api/expenses/salary` endpoints. It supports listing, creating, editing, and deleting those records. Expense and salary forms require an exchange rate in KES per USD; USD amount is optional and is calculated as KES divided by the exchange rate when left blank. Salary records are assigned to a staff member and month, with the backend enforcing one salary payment per staff member per period. Apply the backend expense database migrations before using the page; the server must enforce super-admin access.
+
+The super-admin Reports page summarizes expenses (manual expenses, rent, and salaries) or sales. Reports can be filtered by report type, staff member, and date range, with quick date presets and an Excel workbook export.
 
 ## Assigned account records
 

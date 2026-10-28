@@ -1,23 +1,25 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
-import { Home, UsersRound, CircleUserRound, X, CreditCard, University, ReceiptText, UserPlus, LogOut, Pencil, Clock3, KeyRound } from "lucide-react";
+import { Home, UsersRound, CircleUserRound, X, CreditCard, University, ReceiptText, UserPlus, LogOut, Pencil, Clock3, KeyRound, Banknote, ChartNoAxesCombined } from "lucide-react";
 import Logo from "../../components/shared/Logo";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Modal from "../../components/ui/Modal";
-import ColorfulIcon from "../components/ColorfulIcon";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
 import type { AdminAudience } from "./AdminLayout";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 const links = [
-  { label: "Overview", href: "/admin/dashboard", Icon: Home, tone: "blue" as const },
-  { label: "Users", href: "/admin/users", Icon: UsersRound, tone: "purple" as const },
-  { label: "Accounts", href: "/admin/accounts", Icon: KeyRound, tone: "orange" as const },
-  { label: "My workspace", href: "/admin/attendance", Icon: Clock3, tone: "green" as const },
-  { label: "Universities", href: "/admin/universities", Icon: University, tone: "orange" as const },
-  { label: "Invoices", href: "/admin/invoices", Icon: ReceiptText, tone: "green" as const },
-  { label: "Payment plan", href: "/admin/plan", Icon: CreditCard, tone: "green" as const },
-  { label: "Admins", href: "/admin/admins", Icon: UserPlus, tone: "purple" as const },
+  { label: "Overview", href: "/admin/dashboard", Icon: Home },
+  { label: "Users", href: "/admin/users", Icon: UsersRound },
+  { label: "Accounts", href: "/admin/accounts", Icon: KeyRound },
+  { label: "My workspace", href: "/admin/attendance", Icon: Clock3 },
+  { label: "Universities", href: "/admin/universities", Icon: University },
+  { label: "Invoices", href: "/admin/invoices", Icon: ReceiptText },
+  { label: "Expenses", href: "/admin/expenses", Icon: Banknote },
+  { label: "Reports", href: "/admin/reports", Icon: ChartNoAxesCombined },
+  { label: "Payment plan", href: "/admin/plan", Icon: CreditCard },
+  { label: "Admins", href: "/admin/admins", Icon: UserPlus },
 ];
 
 type Props = {
@@ -38,6 +40,7 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
   const [profileEmail, setProfileEmail] = useState("");
   const [profileError, setProfileError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  useToastFeedback(profileError);
 
   const handleSignOut = () => {
     signOut();
@@ -101,8 +104,8 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
       <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col border-r border-slate-700 bg-[#0b1828] px-3 py-6 text-white shadow-xl transition-transform duration-200 lg:z-20 lg:w-[272px] lg:translate-x-0 lg:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} lg:visible`}>
         <div className="flex items-center justify-between px-3">
           <Logo />
-          <button type="button" onClick={onClose} aria-label="Close navigation menu" className="rounded-lg p-2 text-myinder-navy hover:bg-blue-50 lg:hidden">
-            <X size={22} />
+          <button type="button" onClick={onClose} aria-label="Close navigation menu" className="rounded-lg p-2 text-sky-300 hover:bg-blue-50 lg:hidden">
+            <X size={22} className="text-sky-300" />
           </button>
         </div>
         <nav aria-label={superAdmin ? "Super admin navigation" : "Staff navigation"} className="mt-10 space-y-2">
@@ -112,15 +115,22 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
               : link.href === "/admin/attendance" ||
                 (staffShiftActive && link.href === "/admin/accounts") ||
                 (staffShiftActive && link.href === "/admin/users"),
-          ).map(({ label, href, Icon, tone }) => (
-            <NavLink key={href} to={href} onClick={onClose} className={({ isActive }) => `flex items-center gap-5 rounded-xl px-4 py-3.5 text-sm font-semibold transition ${isActive ? "bg-myinder-orange text-white shadow-sm" : "text-slate-200 hover:bg-slate-800"}`}>
-              <ColorfulIcon Icon={Icon} tone={tone} size={23} badge={false} /> {href === "/admin/accounts" && !superAdmin ? "My Accounts" : label}
+          ).map(({ label, href, Icon }) => (
+            <NavLink
+              key={href}
+              to={!superAdmin && href === "/admin/attendance" ? "/staff/attendance"
+                : !superAdmin && href === "/admin/users" ? "/staff/users"
+                  : href}
+              onClick={onClose}
+              className={({ isActive }) => `flex items-center gap-5 rounded-xl px-4 py-3.5 text-sm font-semibold transition ${isActive ? "bg-myinder-orange text-white shadow-sm" : "text-slate-200 hover:bg-slate-800"}`}
+            >
+              <Icon size={23} className="shrink-0 text-sky-300" /> {href === "/admin/accounts" && !superAdmin ? "My Accounts" : label}
             </NavLink>
           ))}
         </nav>
         <div className="mt-auto border-t border-slate-700 px-3 pt-4">
           <div className="flex items-center gap-3">
-            <ColorfulIcon Icon={CircleUserRound} tone="blue" size={34} className="h-12 w-12 rounded-full" />
+            <CircleUserRound size={34} className="h-12 w-12 shrink-0 text-sky-300" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-white">{admin?.name ?? "Staff"}</p>
               <p className="mt-0.5 truncate text-xs text-slate-300">
@@ -128,12 +138,12 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
               </p>
             </div>
             {superAdmin && (
-              <button type="button" onClick={startProfileEdit} aria-label="Edit my admin details" title="Edit my details" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 hover:text-white">
-                <Pencil size={17} />
+              <button type="button" onClick={startProfileEdit} aria-label="Edit my admin details" title="Edit my details" className="rounded-lg p-2 text-sky-300 hover:bg-slate-800">
+                <Pencil size={17} className="text-sky-300" />
               </button>
             )}
-            <button type="button" onClick={handleSignOut} aria-label="Sign out" title="Sign out" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 hover:text-white">
-              <LogOut size={18} />
+            <button type="button" onClick={handleSignOut} aria-label="Sign out" title="Sign out" className="rounded-lg p-2 text-sky-300 hover:bg-slate-800">
+              <LogOut size={18} className="text-sky-300" />
             </button>
           </div>
         </div>
@@ -180,7 +190,6 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
                   }}
                 />
               </div>
-              {profileError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{profileError}</p>}
               <div className="flex justify-end gap-3 pt-1">
                 <Button type="button" variant="secondary" onClick={() => setEditingProfile(false)} disabled={savingProfile}>Cancel</Button>
                 <Button type="submit" disabled={savingProfile}>{savingProfile ? "Saving..." : "Save details"}</Button>

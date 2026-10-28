@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Clock3, FileText, LoaderCircle } from "lucide-react";
 import { getInvoice, type UserInvoice } from "../services/invoicesService";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 export default function InvoicePanel({
   invoiceNumber,
@@ -12,6 +13,7 @@ export default function InvoicePanel({
   const [invoice, setInvoice] = useState<UserInvoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  useToastFeedback(error);
   const statusLabels: Record<UserInvoice["status"], string> = {
     successful: "Successful",
     pending: "Pending",
@@ -105,7 +107,6 @@ export default function InvoicePanel({
           )}
         </div>
       )}
-      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     </section>
   );
 }

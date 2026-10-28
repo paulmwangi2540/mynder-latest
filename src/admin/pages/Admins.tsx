@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { CheckCircle2, Eye, EyeOff, Pencil, Plus, RefreshCw, Search, Users } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, RefreshCw, Search, Users } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import {
@@ -12,6 +12,7 @@ import {
   type AdminSchool,
 } from "../services/adminAuthService";
 import { useAdminAuthStore, isSuperAdmin } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 const MAX_SCHOOL_ASSIGNMENTS = 1000;
 
@@ -83,6 +84,7 @@ export default function Admins() {
   const [schoolsError, setSchoolsError] = useState("");
   const [actionError, setActionError] = useState("");
   const [success, setSuccess] = useState("");
+  useToastFeedback(actionError || listError || schoolsError, success);
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -255,13 +257,6 @@ export default function Admins() {
         </Button>
       </div>
 
-      {actionError && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>}
-      {success && (
-        <p role="status" className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
-          <CheckCircle2 size={18} />{success}
-        </p>
-      )}
-
       <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-center gap-3">
@@ -291,7 +286,6 @@ export default function Admins() {
 
         {listError ? (
           <div className="p-8 text-center">
-            <p role="alert" className="text-sm text-red-700">{listError}</p>
             <Button type="button" variant="secondary" onClick={() => void loadAdmins(true)} disabled={refreshing} className="mt-4">
               Try again
             </Button>
@@ -419,9 +413,7 @@ export default function Admins() {
               <label className="text-sm font-semibold text-myinder-navy">Assigned schools</label>
               <span className="text-xs text-myinder-muted">{schoolIds.length} selected</span>
             </div>
-            {schoolsError ? (
-              <p role="alert" className="text-sm text-red-700">{schoolsError}</p>
-            ) : schoolsLoading ? (
+            {schoolsError ? null : schoolsLoading ? (
               <p className="text-sm text-myinder-muted">Loading schools...</p>
             ) : (
               <SchoolCheckboxes
@@ -462,7 +454,6 @@ export default function Admins() {
                 onChange={setEditSchoolIds}
                 disabled={savingAssignments}
               />
-              {actionError && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>}
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => setEditing(null)} disabled={savingAssignments}>Cancel</Button>
                 <Button type="submit" disabled={savingAssignments}>

@@ -120,7 +120,7 @@ export default function DashboardRevenueChart({
       {loading ? (
         <div className="grid h-64 place-items-center text-sm text-myinder-muted">Loading revenue data...</div>
       ) : error ? (
-        <div role="alert" className="grid h-64 place-items-center text-center text-sm text-amber-800">Revenue data could not be loaded.</div>
+        <div className="grid h-64 place-items-center text-center text-sm text-myinder-muted">Revenue data is unavailable.</div>
       ) : points.some((point) => point.amount > 0) ? (
         <div className="w-full overflow-hidden">
           <svg

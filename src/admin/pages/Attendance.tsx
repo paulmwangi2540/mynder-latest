@@ -1,22 +1,47 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CalendarClock, Clock3, Coffee, LogIn, LogOut, RefreshCw } from "lucide-react";
 import Button from "../../components/ui/Button";
 import LoadingState from "../../components/shared/LoadingState";
-import Pagination from "../components/Pagination";
 import {
   getCurrentShift,
-  getTimeHistory,
-  getTimeSummary,
+  getTimeHistoryForDate,
   updateShift,
   type ShiftAction,
   type ShiftInterval,
   type TimeShift,
 } from "../services/timeTrackingService";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
+
+const StaffSales = lazy(() => import("../components/StaffSales"));
 
 const TIMEZONE = "Africa/Nairobi";
 const BASE_KEY = ["admin-time-tracking"] as const;
+
+function getTodayInNairobi(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(Date.now());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getDateInNairobi(value: string): string | null {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(timestamp);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 function formatDuration(seconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(seconds));
@@ -146,19 +171,17 @@ function ShiftActivityTimeline({ shift }: { shift: TimeShift }) {
 }
 
 function QueryError({ message }: { message: string }) {
-  return (
-    <p role="alert" className="rounded-xl border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-      {message}
-    </p>
-  );
+  useToastFeedback(message);
+  return null;
 }
 
 export default function Attendance() {
+  const admin = useAdminAuthStore((state) => state.admin);
   const staffName = useAdminAuthStore((state) => state.admin?.name?.trim());
   const adminId = useAdminAuthStore((state) => state.admin?.id);
   const queryClient = useQueryClient();
   const [now, setNow] = useState(Date.now());
-  const [historyPage, setHistoryPage] = useState(1);
+  const [historyDate, setHistoryDate] = useState(getTodayInNairobi);
   const [action, setAction] = useState<ShiftAction | null>(null);
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
@@ -172,18 +195,11 @@ export default function Attendance() {
     refetchOnWindowFocus: true,
   });
   const historyQuery = useQuery({
-    queryKey: [...BASE_KEY, adminId ?? "", "history", historyPage],
-    queryFn: () => getTimeHistory(historyPage, adminId),
+    queryKey: [...BASE_KEY, adminId ?? "", "history", historyDate],
+    queryFn: () => getTimeHistoryForDate(historyDate, adminId),
     enabled: Boolean(adminId),
     staleTime: 30_000,
   });
-  const summaryQuery = useQuery({
-    queryKey: [...BASE_KEY, adminId ?? "", "summary"],
-    queryFn: () => getTimeSummary(adminId),
-    enabled: Boolean(adminId),
-    staleTime: 30_000,
-  });
-
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(interval);
@@ -194,9 +210,32 @@ export default function Attendance() {
     () => shift ? getElapsedSeconds(shift, currentQuery.dataUpdatedAt, now) : null,
     [shift, currentQuery.dataUpdatedAt, now],
   );
+  const dailySummary = useMemo(() => {
+    const shifts = new Map((historyQuery.data ?? []).map((record) => [record.id, record]));
+    if (shift && getDateInNairobi(shift.clocked_in_at) === historyDate) {
+      shifts.set(shift.id, {
+        ...shift,
+        active_seconds: elapsed?.active ?? shift.active_seconds,
+        break_seconds: elapsed?.breaks ?? shift.break_seconds,
+      });
+    }
+    return [...shifts.values()].reduce(
+      (total, record) => ({
+        activeSeconds: total.activeSeconds + record.active_seconds,
+        breakSeconds: total.breakSeconds + record.break_seconds,
+        shiftCount: total.shiftCount + 1,
+      }),
+      { activeSeconds: 0, breakSeconds: 0, shiftCount: 0 },
+    );
+  }, [elapsed, historyDate, historyQuery.data, shift]);
   const resetAt = shift ? new Date(shift.reset_at).getTime() : Number.NaN;
   const resetReached = Boolean(shift && Number.isFinite(resetAt) && now >= resetAt);
-  const totalPages = Math.max(1, historyQuery.data?.total_pages ?? 1);
+  useToastFeedback(
+    actionError ||
+      currentQuery.error?.message ||
+      historyQuery.error?.message,
+    notice,
+  );
 
   async function runAction(nextAction: ShiftAction) {
     if (action) return;
@@ -217,7 +256,6 @@ export default function Attendance() {
       );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [...BASE_KEY, adminId ?? "", "history"] }),
-        queryClient.invalidateQueries({ queryKey: [...BASE_KEY, adminId ?? "", "summary"] }),
       ]);
     } catch (cause: unknown) {
       setActionError(cause instanceof Error ? cause.message : "Unable to update your attendance.");
@@ -227,8 +265,8 @@ export default function Attendance() {
     }
   }
 
-  if (!adminId) return <QueryError message="Your admin session is unavailable. Sign in again to use attendance tracking." />;
-  if (currentQuery.isPending && historyQuery.isPending && summaryQuery.isPending) {
+  if (!adminId || !admin) return <QueryError message="Your admin session is unavailable. Sign in again to use attendance tracking." />;
+  if (currentQuery.isPending && historyQuery.isPending) {
     return <LoadingState label="Loading attendance..." />;
   }
 
@@ -252,25 +290,21 @@ export default function Attendance() {
             Welcome back{staffName ? `, ${staffName}` : ""} <b>!</b>👋
           </h1>
           <p className="mt-2 text-sm text-slate-300">
-            Track your activities here. The workday resets at 12:00 PM Nairobi time.
+            Track your activities here. The workday resets at 12:00 Noon Nairobi time.
           </p>
         </div>
         <Button
           type="button"
           variant="secondary"
           onClick={() => {
-            void Promise.all([currentQuery.refetch(), historyQuery.refetch(), summaryQuery.refetch()]);
+            void Promise.all([currentQuery.refetch(), historyQuery.refetch()]);
           }}
-          disabled={currentQuery.isFetching || historyQuery.isFetching || summaryQuery.isFetching}
+          disabled={currentQuery.isFetching || historyQuery.isFetching}
         >
-          <RefreshCw size={17} className={currentQuery.isFetching || historyQuery.isFetching || summaryQuery.isFetching ? "animate-spin" : ""} />
+          <RefreshCw size={17} className={currentQuery.isFetching || historyQuery.isFetching ? "animate-spin" : ""} />
           Refresh
         </Button>
       </header>
-
-      {actionError && <QueryError message={actionError} />}
-      {currentQuery.isError && <QueryError message={currentQuery.error.message} />}
-      {notice && <p role="status" className="rounded-xl border border-emerald-800/50 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">{notice}</p>}
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
         <article className="rounded-2xl border border-slate-700 bg-[#0c1b2b] p-5 shadow-sm sm:p-7">
@@ -332,50 +366,56 @@ export default function Attendance() {
         </article>
 
         <article className="rounded-2xl border border-slate-700 bg-[#0c1b2b] p-5 shadow-sm sm:p-6">
-          <p className="text-sm font-semibold text-slate-300">All-time summary</p>
-          {summaryQuery.isError ? (
-            <p role="alert" className="mt-4 text-sm text-red-300">{summaryQuery.error.message}</p>
-          ) : (
-            <>
-              <p className="mt-3 font-mono text-3xl font-bold tabular-nums text-white">
-                {formatDuration(summaryQuery.data?.total_active_seconds ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">Total active work time</p>
-              <div className="mt-5 space-y-3 border-t border-slate-700 pt-4">
-                {(summaryQuery.data?.items ?? []).map((item) => (
-                  <div key={item.admin_id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate text-slate-300">
-                      {item.admin_id === adminId ? "Your recorded shifts" : item.admin_id}
-                    </span>
-                    <span className="shrink-0 font-semibold tabular-nums text-emerald-300">
-                      {item.active_hours.toFixed(2)} hrs · {item.shift_count} shifts
-                    </span>
-                  </div>
-                ))}
-                {!summaryQuery.data?.items.length && (
-                  <p className="text-sm text-slate-400">No recorded shifts yet.</p>
-                )}
-              </div>
-            </>
-          )}
+          <p className="text-sm font-semibold text-slate-300">Daily summary · {historyDate}</p>
+          <p className="mt-3 font-mono text-3xl font-bold tabular-nums text-white">
+            {formatDuration(dailySummary.activeSeconds + dailySummary.breakSeconds)}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">Total time for this day</p>
+          <div className="mt-5 space-y-3 border-t border-slate-700 pt-4">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-300">Active work</span>
+              <span className="font-semibold tabular-nums text-emerald-300">{formatDuration(dailySummary.activeSeconds)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-300">Break time</span>
+              <span className="font-semibold tabular-nums text-amber-300">{formatDuration(dailySummary.breakSeconds)}</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              {dailySummary.shiftCount} {dailySummary.shiftCount === 1 ? "shift" : "shifts"} recorded
+            </p>
+          </div>
         </article>
       </section>
+
+      <Suspense fallback={<LoadingState label="Loading sales..." />}>
+        <StaffSales admin={admin} canRecord={shift?.status === "active"} />
+      </Suspense>
 
       <section className="overflow-hidden rounded-2xl border border-slate-700 bg-[#0c1b2b]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 px-5 py-4">
           <div>
             <h2 className="text-lg font-bold text-white">Shift history</h2>
-            <p className="mt-1 text-xs text-slate-400">Work and break intervals are recorded by the server.</p>
+            <p className="mt-1 text-xs text-slate-400">Showing shifts for one day. Choose another date to review its history.</p>
           </div>
-          {historyQuery.data && <span className="text-sm text-slate-400">{historyQuery.data.total} shifts</span>}
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
+            <span>Date</span>
+            <input
+              type="date"
+              value={historyDate}
+              onChange={(event) => setHistoryDate(event.target.value)}
+              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white outline-none focus:border-emerald-400"
+            />
+          </label>
         </div>
-        {historyQuery.isError ? (
-          <p role="alert" className="p-5 text-sm text-red-300">{historyQuery.error.message}</p>
-        ) : historyQuery.isPending ? (
+        {historyQuery.isError ? null : historyQuery.isPending ? (
           <LoadingState label="Loading shift history..." />
-        ) : historyQuery.data?.items.length ? (
-          <div className="divide-y divide-slate-700">
-            {historyQuery.data.items.map((record) => (
+        ) : historyQuery.data?.length ? (
+          <div>
+            <div className="border-b border-slate-700 px-5 py-3 text-sm text-slate-400">
+              {historyQuery.data.length} {historyQuery.data.length === 1 ? "shift" : "shifts"} on {historyDate}
+            </div>
+            <div className="divide-y divide-slate-700">
+            {historyQuery.data.map((record) => (
               <article key={record.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -395,19 +435,10 @@ export default function Attendance() {
                 <ShiftActivityTimeline shift={record} />
               </article>
             ))}
+            </div>
           </div>
         ) : (
-          <p className="px-5 py-12 text-center text-sm text-slate-400">Your shift history will appear here after you clock out.</p>
-        )}
-        {historyQuery.data && historyQuery.data.total_pages > 1 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 px-5 py-4">
-            <p className="text-xs text-slate-400">Page {historyPage} of {totalPages}</p>
-            <Pagination
-              page={historyPage}
-              totalPages={totalPages}
-              onChange={(page) => setHistoryPage(page)}
-            />
-          </div>
+          <p className="px-5 py-12 text-center text-sm text-slate-400">No shifts recorded on {historyDate}.</p>
         )}
       </section>
     </main>

@@ -11,6 +11,7 @@ import UserDetailsModal from "../components/UserDetailsModal";
 import Pagination from "../components/Pagination";
 import ColorfulIcon from "../components/ColorfulIcon";
 import ResolvedImage from "../components/ResolvedImage";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 type Context = { search: string; university: string };
 type PaymentFilter = "all" | "paid" | "unpaid";
@@ -58,6 +59,7 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<SavedUser | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
   const [postingFilter, setPostingFilter] = useState<PostingFilter>("waiting");
+  useToastFeedback(error || paymentQuery.error?.message);
   const pageSize = 12;
 
   useEffect(() => {
@@ -118,12 +120,11 @@ export default function Users() {
   const visibleUsers = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   if (loading) return <LoadingState label="Loading saved users..." />;
-  if (error && !hasData) return <p className="py-10 text-center text-red-600">{error}</p>;
+  if (error && !hasData) return <p className="py-10 text-center text-slate-400">Saved user data is unavailable.</p>;
 
   return (
     <>
       <main>
-        {error && <p role="alert" className="mb-4 text-sm text-amber-700">Showing cached users; refresh failed: {error}</p>}
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-[34px]">Saved Users</h1>
@@ -201,13 +202,6 @@ export default function Users() {
             </div>
           </div>
         </section>
-        {superAdmin && paymentQuery.isError && (
-          <p role="alert" className="mb-4 text-sm text-amber-700">
-            Unable to load payment statuses; payment filters are unavailable.
-            {paymentQuery.error instanceof Error ? ` ${paymentQuery.error.message}` : ""}
-          </p>
-        )}
-
         {visibleUsers.length ? <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 2xl:grid-cols-4">
           {visibleUsers.map((user) => (
             <button key={user.id} type="button" onClick={() => setSelectedUser(user)} className="user-card min-w-0 rounded-xl border border-blue-100 bg-white p-4 text-left shadow-[0_1px_3px_rgba(40,90,150,0.025)] transition hover:border-blue-300 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">

@@ -10,6 +10,7 @@ import {
   type UserInvoice,
 } from "../services/invoicesService";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
 import { USER_DATA_STALE_TIME, userListQueryOptions } from "../hooks/useUsers";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -121,6 +122,7 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  useToastFeedback(error);
   const [dataWarning, setDataWarning] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -202,22 +204,7 @@ export default function Invoices() {
         </Button>
       </div>
 
-      {error && (
-        <div role="alert" className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          <AlertCircle size={20} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold">Could not load invoices</p>
-            <p className="mt-1">{error}</p>
-            <button
-              type="button"
-              onClick={() => void loadInvoices(true)}
-              className="mt-2 font-semibold underline underline-offset-2"
-            >
-              Try again
-            </button>
-          </div>
-        </div>
-      )}
+      {error && <Button variant="secondary" onClick={() => void loadInvoices(true)}>Try loading invoices again</Button>}
       {dataWarning && (
         <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Invoice records loaded with limited linked details: {dataWarning}

@@ -6,7 +6,6 @@ import {
   type FormEvent,
 } from "react";
 import {
-  AlertCircle,
   LoaderCircle,
   Pencil,
   Plus,
@@ -29,6 +28,7 @@ import {
 } from "../services/universitiesService";
 
 import ColorfulIcon from "../components/ColorfulIcon";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 function validateUniversity(
   university: UniversityInput,
@@ -85,6 +85,7 @@ export default function Universities() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  useToastFeedback(error || editError, success);
 
   const loadUniversities = useCallback(async () => {
     setLoading(true);
@@ -365,14 +366,6 @@ export default function Universities() {
           </Button>
         </form>
 
-        {success && (
-          <p
-            role="status"
-            className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700"
-          >
-            {success}
-          </p>
-        )}
       </section>
 
       <section className="mt-6 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-8">
@@ -568,11 +561,6 @@ export default function Universities() {
                   />
                 </div>
               </div>
-              {editError && (
-                <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800 sm:col-span-2">
-                  {editError}
-                </p>
-              )}
               <div className="flex justify-end gap-3 sm:col-span-2">
                 <Button type="button" variant="secondary" onClick={() => setEditing(null)} disabled={savingEdit}>
                   Cancel
@@ -587,58 +575,6 @@ export default function Universities() {
         </Modal>
       )}
 
-      {error && (
-        <Modal>
-          <section
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="university-error-title"
-            aria-describedby="university-error-message"
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-          >
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
-                <AlertCircle size={22} />
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <h2
-                    id="university-error-title"
-                    className="text-lg font-bold text-myinder-navy"
-                  >
-                    Unable to complete the request
-                  </h2>
-
-                  <button
-                    type="button"
-                    onClick={() => setError("")}
-                    aria-label="Close error message"
-                    className="rounded-lg p-1 text-myinder-muted hover:bg-blue-50 hover:text-myinder-navy"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <p
-                  id="university-error-message"
-                  className="mt-2 break-words text-sm leading-6 text-slate-600"
-                >
-                  {error}
-                </p>
-
-                <Button
-                  type="button"
-                  onClick={() => setError("")}
-                  className="mt-5"
-                >
-                  OK
-                </Button>
-              </div>
-            </div>
-          </section>
-        </Modal>
-      )}
     </main>
   );
 }

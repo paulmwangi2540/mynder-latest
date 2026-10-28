@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 export default function RequireAdmin() {
   const accessToken = useAdminAuthStore((state) => state.accessToken);
@@ -11,6 +12,7 @@ export default function RequireAdmin() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [checkedKey, setCheckedKey] = useState("");
   const [refreshError, setRefreshError] = useState("");
+  useToastFeedback(refreshError);
   const checkKey = `${accessToken ?? ""}:${location.pathname}`;
   const authenticated =
     Boolean(accessToken) && expiresAt !== null && expiresAt > Date.now();
@@ -105,7 +107,6 @@ export default function RequireAdmin() {
   if (refreshError) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0b1828] px-4 text-center">
-        <p role="alert" className="text-sm text-red-300">{refreshError}</p>
         <button
           type="button"
           onClick={() => {

@@ -15,6 +15,7 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Logo from "../../components/shared/Logo";
 import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 interface LocationState {
   from?: string;
@@ -33,9 +34,10 @@ export default function AdminLogin() {
   const location = useLocation();
   const navigate = useNavigate();
   const from = (location.state as LocationState | null)?.from;
+  useToastFeedback(error);
 
   if (accessToken && expiresAt !== null && expiresAt > Date.now()) {
-    return <Navigate to={from ?? (isSuperAdmin(admin) ? "/admin/dashboard" : "/admin/users")} replace />;
+    return <Navigate to={from ?? (isSuperAdmin(admin) ? "/admin/dashboard" : "/staff/attendance")} replace />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -46,7 +48,7 @@ export default function AdminLogin() {
     try {
       await signIn(email, password);
       const signedInAdmin = useAdminAuthStore.getState().admin;
-      navigate(from ?? (isSuperAdmin(signedInAdmin) ? "/admin/dashboard" : "/admin/users"), { replace: true });
+      navigate(from ?? (isSuperAdmin(signedInAdmin) ? "/admin/dashboard" : "/staff/attendance"), { replace: true });
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "Unable to sign in.");
     } finally {
@@ -130,11 +132,6 @@ export default function AdminLogin() {
               </button>
             </div>
           </div>
-          {error && (
-            <p role="alert" className="admin-login-error rounded-lg px-4 py-3 text-sm text-red-200">
-              {error}
-            </p>
-          )}
           <Button type="submit" disabled={submitting} className="admin-login-submit w-full py-3">
             {submitting ? "Signing in..." : "Sign in"}
           </Button>

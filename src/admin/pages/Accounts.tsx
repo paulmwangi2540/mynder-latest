@@ -15,6 +15,7 @@ import {
 } from "../services/accountsService";
 import { getAdmins, type AdminAccount } from "../services/adminAuthService";
 import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
+import useToastFeedback from "../../hooks/useToastFeedback";
 
 const PAGE_SIZE = 20;
 const EMPTY_FIELDS: AccountFields = {
@@ -119,6 +120,7 @@ export default function Accounts() {
   const [listError, setListError] = useState("");
   const [actionError, setActionError] = useState("");
   const [success, setSuccess] = useState("");
+  useToastFeedback(actionError || listError, success);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedAccount | null>(null);
   const [detailsAccount, setDetailsAccount] = useState<ManagedAccount | null>(null);
@@ -362,9 +364,6 @@ export default function Accounts() {
         </div>
       </div>
 
-      {actionError && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>}
-      {success && <p role="status" className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">{success}</p>}
-
       {showImport && (
         <form onSubmit={handleImport} className="space-y-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
@@ -467,7 +466,6 @@ export default function Accounts() {
 
         {listError ? (
           <div className="p-8 text-center">
-            <p role="alert" className="text-sm text-red-700">{listError}</p>
             <Button variant="secondary" className="mt-4" onClick={() => void loadAccounts(true)}>Try again</Button>
           </div>
         ) : loading ? (
