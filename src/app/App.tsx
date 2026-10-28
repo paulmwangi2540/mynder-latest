@@ -19,6 +19,7 @@ import RequireSuperAdmin from "../admin/components/RequireSuperAdmin";
 const Accounts = lazy(() => import("../admin/pages/Accounts"));
 const Expenses = lazy(() => import("../admin/pages/Expenses"));
 const Reports = lazy(() => import("../admin/pages/Reports"));
+const StaffSalesHistory = lazy(() => import("../admin/pages/StaffSalesHistory"));
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/admin/invoices" element={<Invoices />} />
             <Route path="/admin/expenses" element={<Suspense fallback={<LoadingState label="Loading expenses..." />}><Expenses /></Suspense>} />
             <Route path="/admin/reports" element={<Suspense fallback={<LoadingState label="Loading reports..." />}><Reports /></Suspense>} />
+            <Route path="/admin/staff-sales" element={<Suspense fallback={<LoadingState label="Loading staff sales..." />}><StaffSalesHistory /></Suspense>} />
             <Route path="/admin/plan" element={<PaymentPlan />} />
             <Route path="/admin/admins" element={<Admins />} />
           </Route>

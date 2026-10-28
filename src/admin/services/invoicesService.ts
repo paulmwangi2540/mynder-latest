@@ -7,6 +7,7 @@ export interface UserInvoice {
   invoiceName?: string;
   userId?: string;
   paymentId?: string;
+  paymentMethod?: string;
   customerEmail?: string;
   hostedInvoiceUrl?: string;
   downloadUrl?: string;
@@ -113,7 +114,6 @@ function mapInvoice(
     payment.paid_at ??
     record.paid_at ??
     data.paid_at;
-
   const rawInvoiceNumber =
     invoice.invoice_number ??
     invoice.invoiceNumber ??
@@ -129,6 +129,31 @@ function mapInvoice(
     );
     return typeof value === "string" ? value.trim() : undefined;
   };
+  const paymentMethodDetails = asRecord(
+    invoice.payment_method_details ??
+      payment.payment_method_details ??
+      record.payment_method_details ??
+      data.payment_method_details,
+  );
+  const rawPaymentMethod =
+    paymentMethodDetails.type ??
+    invoice.payment_method_type ??
+    payment.payment_method_type ??
+    record.payment_method_type ??
+    data.payment_method_type ??
+    invoice.method ??
+    payment.method ??
+    record.method ??
+    data.method ??
+    invoice.payment_method ??
+    payment.payment_method ??
+    record.payment_method ??
+    data.payment_method;
+  const paymentMethodValue =
+    typeof rawPaymentMethod === "object" && rawPaymentMethod !== null
+      ? asRecord(rawPaymentMethod).type ?? asRecord(rawPaymentMethod).name
+      : rawPaymentMethod;
+  const paymentMethod = rawTextField(paymentMethodValue);
 
   return {
     invoiceNumber:
@@ -148,6 +173,9 @@ function mapInvoice(
       : {}),
     ...(rawTextField(invoice.payment_id, record.payment_id, data.payment_id)
       ? { paymentId: rawTextField(invoice.payment_id, record.payment_id, data.payment_id) }
+      : {}),
+    ...(paymentMethod && !paymentMethod.startsWith("pm_")
+      ? { paymentMethod }
       : {}),
     ...(rawTextField(invoice.customer_email, record.customer_email, data.customer_email)
       ? { customerEmail: rawTextField(invoice.customer_email, record.customer_email, data.customer_email) }

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
-  FileText,
+  CreditCard,
 } from "lucide-react";
 import DashboardCommunitySection, { type UniversityCount } from "../components/dashboard/DashboardCommunitySection";
 import DashboardRecentUsers from "../components/dashboard/DashboardRecentUsers";
@@ -18,6 +18,7 @@ import DashboardRevenueChart, {
 import DashboardSummaryCards from "../components/dashboard/DashboardSummaryCards";
 import { useUsers } from "../hooks/useUsers";
 import { getAdminPaymentStatuses, getInvoices, type UserInvoice } from "../services/invoicesService";
+import { getSales, PAYMENT_METHODS, type Sale } from "../services/salesService";
 import { getUniversities } from "../services/universitiesService";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
 import LoadingState from "../../components/shared/LoadingState";
@@ -52,8 +53,84 @@ const visibleStatuses: Status[] = [
   "unknown",
 ];
 
+interface PaymentMethodMixRow {
+  method: string;
+  directCount: number;
+  staffCount: number;
+  color: string;
+}
+
+const paymentMethodColors = [
+  "#2a9d8f",
+  "#e3a43b",
+  "#4e7fbd",
+  "#8b6bd6",
+  "#d95d5d",
+  "#168aad",
+  "#64748b",
+  "#c2410c",
+];
+
 function getInvoiceStatus(invoice: UserInvoice, paymentStatuses: Map<string, Status>): Status {
   return (invoice.paymentId && paymentStatuses.get(invoice.paymentId)) || invoice.status;
+}
+
+function getPaymentMethodLabel(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  const knownMethods: Record<string, string> = {
+    "apple pay": "Apple Pay",
+    applepay: "Apple Pay",
+    "cash app": "Cash App",
+    cashapp: "Cash App",
+    card: "Card",
+    cards: "Card",
+    "credit card": "Card",
+    "debit card": "Card",
+    stripe: "Card",
+    other: "Other",
+    paypal: "PayPal",
+    unspecified: "Unspecified",
+    venmo: "Venmo",
+    zelle: "Zelle",
+  };
+  return knownMethods[normalized] ??
+    (normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Unspecified");
+}
+
+function getPaymentMethodMix(
+  invoices: UserInvoice[],
+  paymentStatuses: Map<string, Status>,
+  sales: Sale[],
+): { rows: PaymentMethodMixRow[]; directTotal: number; staffTotal: number } {
+  const directCounts = new Map<string, number>();
+  const staffCounts = new Map<string, number>();
+  for (const invoice of invoices) {
+    const status = getInvoiceStatus(invoice, paymentStatuses);
+    if (status !== "successful" && status !== "refunded") continue;
+    const method = getPaymentMethodLabel(invoice.paymentMethod ?? "Unspecified");
+    directCounts.set(method, (directCounts.get(method) ?? 0) + 1);
+  }
+  for (const sale of sales) {
+    const method = getPaymentMethodLabel(sale.payment_method);
+    staffCounts.set(method, (staffCounts.get(method) ?? 0) + 1);
+  }
+
+  const directTotal = [...directCounts.values()].reduce((sum, count) => sum + count, 0);
+  const staffTotal = [...staffCounts.values()].reduce((sum, count) => sum + count, 0);
+  const methods = new Set([
+    ...PAYMENT_METHODS.map(getPaymentMethodLabel),
+    ...directCounts.keys(),
+    ...staffCounts.keys(),
+  ]);
+  const rows = [...methods]
+    .filter((method) => (directCounts.get(method) ?? 0) > 0 || (staffCounts.get(method) ?? 0) > 0)
+    .map((method, index) => ({
+      method,
+      directCount: directCounts.get(method) ?? 0,
+      staffCount: staffCounts.get(method) ?? 0,
+      color: paymentMethodColors[index % paymentMethodColors.length],
+    }));
+  return { rows, directTotal, staffTotal };
 }
 
 function getUniversityCounts(users: SavedUser[]): UniversityCount[] {
@@ -305,6 +382,12 @@ export default function Dashboard() {
     enabled: Boolean(adminId && accessToken),
     staleTime: 60_000,
   });
+  const salesQuery = useQuery({
+    queryKey: ["admin-dashboard", adminId ?? "", "staff-sales"],
+    queryFn: getSales,
+    enabled: Boolean(adminId && accessToken),
+    staleTime: 30_000,
+  });
   const universitiesQuery = useQuery({
     queryKey: ["admin-dashboard", adminId ?? "", "universities"],
     queryFn: getUniversities,
@@ -315,10 +398,12 @@ export default function Dashboard() {
     error ||
       invoicesQuery.error?.message ||
       paymentStatusesQuery.error?.message ||
+      salesQuery.error?.message ||
       universitiesQuery.error?.message,
   );
 
   const invoices = invoicesQuery.data ?? [];
+  const sales = salesQuery.data ?? [];
   const paymentStatuses = paymentStatusesQuery.data ?? new Map<string, Status>();
   const universityCounts = useMemo(() => getUniversityCounts(users), [users]);
   const registrationBuckets = useMemo(
@@ -348,19 +433,12 @@ export default function Dashboard() {
     }
     return counts;
   }, [invoices, paymentStatuses]);
-  const paymentTotal = invoices.length;
   const successfulPayments = paymentCounts.get("successful") ?? 0;
   const pendingPayments = paymentCounts.get("pending") ?? 0;
-  const paymentSegments = useMemo(() => {
-    let offset = 0;
-    return visibleStatuses.flatMap((status) => {
-      const count = paymentCounts.get(status) ?? 0;
-      if (count === 0 || paymentTotal === 0) return [];
-      const start = offset;
-      offset += (count / paymentTotal) * 100;
-      return [`${statusColors[status]} ${start}% ${offset}%`];
-    });
-  }, [paymentCounts, paymentTotal]);
+  const paymentMethodMix = useMemo(
+    () => getPaymentMethodMix(invoices, paymentStatuses, sales),
+    [invoices, paymentStatuses, sales],
+  );
   const recentInvoices = useMemo(
     () => [...invoices]
       .sort((left, right) => {
@@ -463,38 +541,74 @@ export default function Dashboard() {
         />
 
         <div className="grid min-w-0 gap-5 sm:grid-cols-2 xl:grid-cols-1">
-          <Link to="/admin/invoices" className="dashboard-reveal min-w-0 rounded-2xl border border-orange-100 bg-white p-4 shadow-soft transition hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-myinder-blue sm:p-5">
+          <section className="dashboard-reveal min-w-0 rounded-2xl border border-orange-100 bg-white p-4 shadow-soft sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-bold text-myinder-navy">Order / payment status</h2>
-                <p className="mt-1 text-xs text-myinder-muted">Distribution of invoice statuses</p>
+                <h2 className="font-bold text-myinder-navy">Payment methods</h2>
+                <p className="mt-1 text-xs text-myinder-muted">Share of recorded payments by method and source</p>
               </div>
-              <FileText size={19} className="text-myinder-blue" />
+              <CreditCard size={19} className="shrink-0 text-myinder-blue" />
             </div>
-            <div className="mt-4 flex items-center justify-center gap-4 sm:gap-6">
-              <div
-                className="relative grid h-32 w-32 shrink-0 place-items-center rounded-full sm:h-36 sm:w-36"
-                style={{ background: paymentTotal ? `conic-gradient(${paymentSegments.join(", ")})` : "conic-gradient(#eaf1fa 0% 100%)" }}
-                role="img"
-                aria-label={`${paymentTotal} invoices, ${successfulPayments} successful, ${pendingPayments} pending`}
-              >
-                <div className="grid h-[4.5rem] w-[4.5rem] place-content-center rounded-full bg-white text-center">
-                  <span className="text-lg font-extrabold tabular-nums text-myinder-navy">{paymentTotal.toLocaleString()}</span>
-                  <span className="text-[10px] text-myinder-muted">Invoices</span>
-                </div>
-              </div>
-              <ul className="min-w-0 flex-1 space-y-2 text-[11px] sm:text-xs">
-                {visibleStatuses.map((status) => (
-                  <li key={status} className="flex min-w-0 items-center gap-2 text-myinder-muted">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: statusColors[status] }} />
-                    <span className="truncate">{status[0].toUpperCase() + status.slice(1)}</span>
-                    <span className="ml-auto font-bold tabular-nums text-myinder-navy">{paymentCounts.get(status) ?? 0}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-x-2 gap-y-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-myinder-muted">Method</span>
+              <span className="text-center text-[10px] font-semibold leading-tight text-myinder-muted">
+                Direct users<br />({paymentMethodMix.directTotal})
+              </span>
+              <span className="text-center text-[10px] font-semibold leading-tight text-myinder-muted">
+                Staff sales<br />({paymentMethodMix.staffTotal})
+              </span>
+              {invoicesQuery.isLoading || paymentStatusesQuery.isLoading || salesQuery.isLoading ? (
+                <p className="col-span-3 py-4 text-center text-xs text-myinder-muted">Loading payment methods...</p>
+              ) : invoicesQuery.isError || paymentStatusesQuery.isError || salesQuery.isError ? (
+                <p className="col-span-3 py-4 text-center text-xs text-amber-800">
+                  Payment method data is unavailable. Refresh the dashboard to try again.
+                </p>
+              ) : paymentMethodMix.rows.length ? (
+                paymentMethodMix.rows.map((row) => {
+                  const directPercent = paymentMethodMix.directTotal
+                    ? (row.directCount / paymentMethodMix.directTotal) * 100
+                    : 0;
+                  const staffPercent = paymentMethodMix.staffTotal
+                    ? (row.staffCount / paymentMethodMix.staffTotal) * 100
+                    : 0;
+                  const formatPercent = (value: number) =>
+                    `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+                  return (
+                    <div key={row.method} className="col-span-3 grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] items-center gap-x-2">
+                      <span className="flex min-w-0 items-center gap-2 text-[11px] text-myinder-muted sm:text-xs">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                        <span className="truncate">{row.method}</span>
+                      </span>
+                      {[directPercent, staffPercent].map((percent, index) => (
+                        <span key={index} className="text-center text-[11px] font-bold tabular-nums text-myinder-navy">
+                          {formatPercent(percent)}
+                          <span className="mt-1 block h-1 overflow-hidden rounded-full bg-slate-100">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{
+                                width: `${percent}%`,
+                                backgroundColor: row.color,
+                                opacity: index === 0 ? 1 : 0.55,
+                              }}
+                            />
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="col-span-3 py-4 text-center text-xs text-myinder-muted">
+                  No direct-user or staff payments recorded.
+                </p>
+              )}
             </div>
-            {paymentStatusesQuery.isError && <p className="mt-3 text-xs text-amber-800">Payment statuses unavailable.</p>}
-          </Link>
+            <div className="mt-4 flex flex-wrap gap-3 border-t border-orange-50 pt-3 text-[10px] text-myinder-muted">
+              <Link to="/admin/invoices" className="font-semibold text-myinder-blue hover:underline">Direct-user invoices</Link>
+              <Link to="/admin/staff-sales" className="font-semibold text-myinder-blue hover:underline">Staff sales</Link>
+              <span className="ml-auto">Percentages are based on transaction count.</span>
+            </div>
+          </section>
 
           <section className="dashboard-reveal min-w-0 rounded-2xl border border-orange-100 bg-white p-4 shadow-soft sm:p-5">
             <div className="mb-4">

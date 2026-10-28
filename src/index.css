@@ -118,6 +118,23 @@ main.dashboard-overview svg text {
   color: #e6eef8;
 }
 
+@media (min-width: 1024px) {
+  .admin-page-content,
+  .admin-page-content :where(main, section, article, .grid, .flex) {
+    min-width: 0;
+  }
+
+  .admin-page-content :where(input, select, textarea, table, svg, img) {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1536px) {
+  .admin-page-content :where(.max-w-6xl, .max-w-7xl) {
+    max-width: none;
+  }
+}
+
 .admin-login-scene {
   background:
     radial-gradient(ellipse at 6% 2%, rgba(255, 119, 20, 0.2), transparent 20%),
@@ -321,6 +338,18 @@ main.dashboard-overview svg text {
 .admin-theme button:not(:disabled):hover {
   background-color: #15803d !important;
   box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.55), 0 0 18px rgba(34, 197, 94, 0.55);
+}
+
+.admin-theme button.sale-details-button {
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  background-color: rgba(14, 116, 144, 0.3) !important;
+  color: #e0f2fe !important;
+}
+
+.admin-theme button.sale-details-button:not(:disabled):hover {
+  border-color: rgba(56, 189, 248, 0.75) !important;
+  background-color: rgba(14, 116, 144, 0.55) !important;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2), 0 0 14px rgba(14, 165, 233, 0.2);
 }
 
 .admin-theme button.admin-sidebar-backdrop,

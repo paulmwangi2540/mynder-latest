@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
-import { Home, UsersRound, CircleUserRound, X, CreditCard, University, ReceiptText, UserPlus, LogOut, Pencil, Clock3, KeyRound, Banknote, ChartNoAxesCombined } from "lucide-react";
+import { Home, UsersRound, CircleUserRound, X, CreditCard, University, ReceiptText, UserPlus, LogOut, Pencil, Clock3, KeyRound, Banknote, ChartNoAxesCombined, ShoppingCart } from "lucide-react";
 import Logo from "../../components/shared/Logo";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -18,8 +18,9 @@ const links = [
   { label: "Invoices", href: "/admin/invoices", Icon: ReceiptText },
   { label: "Expenses", href: "/admin/expenses", Icon: Banknote },
   { label: "Reports", href: "/admin/reports", Icon: ChartNoAxesCombined },
+  { label: "Staff sales", href: "/admin/staff-sales", Icon: ShoppingCart },
   { label: "Payment plan", href: "/admin/plan", Icon: CreditCard },
-  { label: "Admins", href: "/admin/admins", Icon: UserPlus },
+  { label: "Staffs management", href: "/admin/admins", Icon: UserPlus },
 ];
 
 type Props = {
@@ -99,12 +100,12 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
         aria-hidden={!open}
         tabIndex={open ? 0 : -1}
         onClick={onClose}
-        className={`admin-sidebar-backdrop fixed inset-0 z-30 bg-slate-900/40 transition-opacity lg:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
+        className={`admin-sidebar-backdrop fixed inset-0 z-30 bg-slate-900/40 transition-opacity xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
       />
-      <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col border-r border-slate-700 bg-[#0b1828] px-3 py-6 text-white shadow-xl transition-transform duration-200 lg:z-20 lg:w-[272px] lg:translate-x-0 lg:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} lg:visible`}>
+      <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col border-r border-slate-700 bg-[#0b1828] px-3 py-6 text-white shadow-xl transition-transform duration-200 xl:z-20 xl:w-[272px] xl:translate-x-0 xl:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} xl:visible`}>
         <div className="flex items-center justify-between px-3">
           <Logo />
-          <button type="button" onClick={onClose} aria-label="Close navigation menu" className="rounded-lg p-2 text-sky-300 hover:bg-blue-50 lg:hidden">
+          <button type="button" onClick={onClose} aria-label="Close navigation menu" className="rounded-lg p-2 text-sky-300 hover:bg-blue-50 xl:hidden">
             <X size={22} className="text-sky-300" />
           </button>
         </div>

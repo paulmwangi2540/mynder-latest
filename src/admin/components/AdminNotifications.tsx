@@ -1,5 +1,6 @@
 import { Bell, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useToastFeedback from "../../hooks/useToastFeedback";
 import {
@@ -21,6 +22,7 @@ function formatNotificationDate(value: string): string {
 }
 
 export default function AdminNotifications() {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationPage, setNotificationPage] = useState(1);
   const [deviceNotificationsEnabled, setDeviceNotificationsEnabled] = useState(
@@ -29,6 +31,8 @@ export default function AdminNotifications() {
   const [ringing, setRinging] = useState(false);
   const adminId = useAdminAuthStore((state) => state.admin?.id);
   const queryClient = useQueryClient();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const deviceNotificationsEnabledRef = useRef(deviceNotificationsEnabled);
   const seenNotificationIds = useRef(new Set<string>());
   const notificationsInitialized = useRef(false);
@@ -61,6 +65,9 @@ export default function AdminNotifications() {
   });
   const feedQuery = notificationPage === 1 ? firstPageQuery : selectedPageQuery;
   const feedItems = (feedQuery.data?.items ?? []).filter(
+    (notification) => notification.recipient_id === adminId,
+  );
+  const previewItems = (firstPageQuery.data?.items ?? []).filter(
     (notification) => notification.recipient_id === adminId,
   );
   const readMutation = useMutation({
@@ -176,22 +183,39 @@ export default function AdminNotifications() {
   }, []);
 
   useEffect(() => {
+    if (!previewOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [previewOpen]);
+
+  useEffect(() => {
     if (!notificationsOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setNotificationsOpen(false);
     };
     document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+      triggerRef.current?.focus();
+    };
   }, [notificationsOpen]);
 
   return (
-    <div className="relative order-1 ml-auto sm:order-none sm:ml-auto">
+    <div className="relative order-1 ml-auto sm:order-4 sm:ml-auto xl:order-none">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setNotificationsOpen((open) => !open)}
+        onClick={() => setPreviewOpen((open) => !open)}
         aria-label={`Notifications${unreadCountQuery.data ? `, ${unreadCountQuery.data} unread` : ""}`}
-        aria-expanded={notificationsOpen}
-        aria-controls="admin-notifications"
+        aria-expanded={previewOpen || notificationsOpen}
+        aria-controls="admin-notifications-preview"
         className={`relative flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/40 text-white transition hover:bg-slate-800 ${ringing ? "animate-bounce" : ""}`}
       >
         <Bell size={20} />
@@ -202,10 +226,10 @@ export default function AdminNotifications() {
           </span>
         )}
       </button>
-      {notificationsOpen && (
+      {previewOpen && (
         <section
-          id="admin-notifications"
-          aria-label="Notifications"
+          id="admin-notifications-preview"
+          aria-label="Recent notifications"
           className="absolute right-0 top-full z-50 mt-3 w-[min(90vw,360px)] rounded-2xl border border-slate-600 bg-[#0c1b2b] p-4 text-white shadow-2xl"
         >
           <div className="flex items-start justify-between gap-3">
@@ -214,6 +238,76 @@ export default function AdminNotifications() {
               <p className="mt-1 text-xs text-slate-400">{unreadCountQuery.data ?? 0} unread</p>
             </div>
             <button
+              type="button"
+              onClick={() => setPreviewOpen(false)}
+              aria-label="Close notifications preview"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800"
+            >
+              <X size={17} />
+            </button>
+          </div>
+          {firstPageQuery.isPending ? (
+            <p className="py-6 text-center text-sm text-slate-400">Loading notifications…</p>
+          ) : firstPageQuery.isError ? (
+            <div className="mt-3 rounded-xl border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-200">
+              Could not load notifications. Try again shortly.
+            </div>
+          ) : previewItems.length ? (
+            <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+              {previewItems.slice(0, 3).map((notification) => (
+                <li
+                  key={notification.id}
+                  className={`rounded-xl border p-3 ${notification.read_at ? "border-slate-700 bg-slate-900/40" : "border-sky-800/70 bg-sky-950/30"}`}
+                >
+                  <h3 className="text-sm font-bold text-white">{notification.title}</h3>
+                  <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-slate-300">
+                    {notification.message}
+                  </p>
+                  <time className="mt-2 block text-[11px] text-slate-500" dateTime={notification.created_at}>
+                    {formatNotificationDate(notification.created_at)}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-6 text-center text-sm text-slate-300">
+              You’re all caught up.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setNotificationPage(1);
+              setPreviewOpen(false);
+              setNotificationsOpen(true);
+            }}
+            className="mt-3 w-full rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold text-sky-300 hover:bg-slate-800"
+          >
+            View all notifications
+          </button>
+        </section>
+      )}
+      {notificationsOpen && createPortal(
+        <div
+          className="admin-theme safe-area-padding fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setNotificationsOpen(false);
+          }}
+        >
+          <section
+            id="admin-notifications"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-notifications-title"
+            className="flex max-h-[min(90vh,90dvh)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-600 bg-[#0c1b2b] p-4 text-white shadow-2xl sm:p-6"
+          >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="admin-notifications-title" className="text-lg font-bold sm:text-xl">Notifications</h2>
+              <p className="mt-1 text-xs text-slate-400">{unreadCountQuery.data ?? 0} unread</p>
+            </div>
+            <button
+              ref={closeButtonRef}
               type="button"
               onClick={() => setNotificationsOpen(false)}
               aria-label="Close notifications"
@@ -242,47 +336,49 @@ export default function AdminNotifications() {
               {readAllMutation.isPending ? "Updating…" : "Mark all read"}
             </button>
           </div>
-          {feedQuery.isPending ? (
-            <p className="py-8 text-center text-sm text-slate-400">Loading notifications…</p>
-          ) : feedQuery.isError ? (
-            <div className="mt-4 rounded-xl border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-200">
-              Could not load notifications. Close and reopen the feed to retry.
-            </div>
-          ) : feedItems.length ? (
-            <ul className="mt-3 max-h-[min(60vh,520px)] space-y-2 overflow-y-auto">
-              {feedItems.map((notification) => (
-                <li
-                  key={notification.id}
-                  className={`rounded-xl border p-3 ${notification.read_at ? "border-slate-700 bg-slate-900/40" : "border-sky-800/70 bg-sky-950/30"}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white">{notification.title}</h3>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-slate-300">{notification.message}</p>
-                      <time className="mt-2 block text-[11px] text-slate-500" dateTime={notification.created_at}>
-                        {formatNotificationDate(notification.created_at)}
-                      </time>
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+            {feedQuery.isPending ? (
+              <p className="py-8 text-center text-sm text-slate-400">Loading notifications…</p>
+            ) : feedQuery.isError ? (
+              <div className="rounded-xl border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-200">
+                Could not load notifications. Close and reopen the feed to retry.
+              </div>
+            ) : feedItems.length ? (
+              <ul className="space-y-2">
+                {feedItems.map((notification) => (
+                  <li
+                    key={notification.id}
+                    className={`rounded-xl border p-3 ${notification.read_at ? "border-slate-700 bg-slate-900/40" : "border-sky-800/70 bg-sky-950/30"}`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-bold text-white">{notification.title}</h3>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-slate-300">{notification.message}</p>
+                        <time className="mt-2 block text-[11px] text-slate-500" dateTime={notification.created_at}>
+                          {formatNotificationDate(notification.created_at)}
+                        </time>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => readMutation.mutate({
+                          notification,
+                          unread: Boolean(notification.read_at),
+                        })}
+                        disabled={readMutation.isPending}
+                        className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-sky-300 hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {notification.read_at ? "Mark unread" : "Mark read"}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => readMutation.mutate({
-                        notification,
-                        unread: Boolean(notification.read_at),
-                      })}
-                      disabled={readMutation.isPending}
-                      className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-sky-300 hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      {notification.read_at ? "Mark unread" : "Mark read"}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-6 text-center text-sm text-slate-300">
-              You’re all caught up.
-            </p>
-          )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-8 text-center text-sm text-slate-300">
+                You’re all caught up.
+              </p>
+            )}
+          </div>
           {feedQuery.data && feedQuery.data.total_pages > 1 && (
             <div className="mt-3 flex items-center justify-between border-t border-slate-700 pt-3">
               <button
@@ -304,7 +400,9 @@ export default function AdminNotifications() {
               </button>
             </div>
           )}
-        </section>
+          </section>
+        </div>,
+        document.body,
       )}
     </div>
   );

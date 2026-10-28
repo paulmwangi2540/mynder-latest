@@ -71,7 +71,7 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="min-h-screen min-w-0 lg:pl-[272px]">
+      <div className="min-h-screen min-w-0 xl:pl-[272px]">
         <AdminHeader
           search={search}
           onSearch={setSearch}
@@ -86,7 +86,7 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
           onMenuClick={() => setSidebarOpen(true)}
           sidebarOpen={sidebarOpen}
         />
-        <div className="px-4 pb-10 pt-5 sm:px-7 lg:px-8">
+        <div className="admin-page-content w-full min-w-0 px-4 pb-10 pt-5 sm:px-7 lg:px-8">
           <Outlet context={{ search, university, setSearch, setUniversity, route: location.pathname }} />
         </div>
       </div>

@@ -36,15 +36,15 @@ export default function AdminHeader({
   sidebarOpen,
 }: Props) {
   return (
-    <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-700 bg-[#0b1828]/95 px-4 py-3 text-white backdrop-blur sm:min-h-[82px] sm:flex-nowrap sm:gap-3 sm:py-0 sm:px-8">
-      <button type="button" onClick={onMenuClick} aria-label="Open navigation menu" aria-expanded={sidebarOpen} aria-controls="admin-sidebar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white hover:bg-slate-800 lg:hidden">
+    <header className="sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-700 bg-[#0b1828]/95 px-4 py-3 text-white backdrop-blur sm:min-h-[82px] sm:gap-3 sm:px-8 xl:flex-nowrap xl:py-0">
+      <button type="button" onClick={onMenuClick} aria-label="Open navigation menu" aria-expanded={sidebarOpen} aria-controls="admin-sidebar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white hover:bg-slate-800 xl:hidden">
         <Menu size={24} />
       </button>
-      <div className="flex min-w-0 items-center lg:hidden">
+      <div className="flex min-w-0 items-center xl:hidden">
         <Logo />
       </div>
       {showSearch && (
-        <div className="order-3 flex w-full min-w-0 basis-full items-center gap-2 sm:order-none sm:ml-auto sm:basis-auto sm:max-w-[680px] sm:flex-1">
+        <div className="order-3 flex w-full min-w-0 basis-full items-center gap-2 sm:max-w-full xl:order-none xl:ml-auto xl:basis-auto xl:max-w-[680px] xl:flex-1">
           <div className="min-w-0 flex-1">
             <Input
               search
@@ -64,7 +64,7 @@ export default function AdminHeader({
               value={university}
               onChange={(event) => onUniversityChange(event.target.value)}
               aria-label="Filter users by university"
-              className="w-[min(36vw,220px)] shrink-0 rounded-xl border border-slate-600 bg-slate-900 px-3 py-3 text-base text-white outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-900 sm:text-sm"
+              className="w-[min(36vw,220px)] max-w-[220px] shrink rounded-xl border border-slate-600 bg-slate-900 px-3 py-3 text-base text-white outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-900 sm:text-sm"
             >
               <option value="">All universities</option>
               {universities.map((name) => <option key={name} value={name}>{name}</option>)}
@@ -73,7 +73,7 @@ export default function AdminHeader({
         </div>
       )}
       {showExport && (
-        <Button onClick={onExport} className="order-2 ml-auto shrink-0 px-4 sm:order-none sm:ml-0 sm:px-5"><Download size={19}/><span className="hidden sm:inline">Export Data</span><span className="sm:hidden">Export</span></Button>
+        <Button onClick={onExport} className="order-2 ml-auto shrink-0 px-4 xl:order-none xl:ml-0 xl:px-5"><Download size={19}/><span className="hidden sm:inline">Export Data</span><span className="sm:hidden">Export</span></Button>
       )}
       <Suspense fallback={<div className="ml-auto flex h-11 w-11 items-center justify-center text-white"><Bell size={20} /></div>}>
         <AdminNotifications />
