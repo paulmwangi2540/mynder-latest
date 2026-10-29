@@ -1,9 +1,10 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import JSZip from "jszip";
-import {  Download } from "lucide-react";
+import { CalendarDays, Download, Eye, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import LoadingState from "../../components/shared/LoadingState";
+import Button from "../../components/ui/Button";
 import { getAdmins, type AdminAccount } from "../services/adminAuthService";
 import {
   getManualExpenses,
@@ -13,6 +14,14 @@ import {
 import { getSales } from "../services/salesService";
 import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
 import useToastFeedback from "../../hooks/useToastFeedback";
+import {
+  createFinanceReport,
+  deleteFinanceReport,
+  getFinanceReport,
+  getFinanceReports,
+  refreshFinanceReport,
+  type FinanceReport,
+} from "../services/financeReportsService";
 
 type ReportType = "Expenses" | "Sales";
 type QuickRange = "Today" | "Last 7 days" | "Last 30 days" | "This Month" | "All Time" | "Custom";
@@ -37,6 +46,7 @@ interface ReportRow {
 }
 
 const QUICK_RANGES: QuickRange[] = ["Today", "Last 7 days", "Last 30 days", "This Month", "All Time"];
+const FINANCE_REPORTS_KEY = ["admin-finance-reports"] as const;
 
 function getLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -121,6 +131,229 @@ async function downloadExcel(reportType: ReportType, rows: ReportRow[]) {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function currentMonth(): string {
+  return getLocalDate(new Date()).slice(0, 7);
+}
+
+function reportMonthLabel(value: string): string {
+  const date = new Date(`${value}-01T00:00:00`);
+  return Number.isFinite(date.getTime())
+    ? new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(date)
+    : value;
+}
+
+function FinancialReportsSection() {
+  const queryClient = useQueryClient();
+  const [reportPeriod, setReportPeriod] = useState(currentMonth);
+  const [busyAction, setBusyAction] = useState("");
+  const [selectedReportId, setSelectedReportId] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState("");
+  const reportsQuery = useQuery({
+    queryKey: FINANCE_REPORTS_KEY,
+    queryFn: getFinanceReports,
+    staleTime: 30_000,
+  });
+  const detailQuery = useQuery({
+    queryKey: [...FINANCE_REPORTS_KEY, "detail", selectedReportId],
+    queryFn: () => getFinanceReport(selectedReportId),
+    enabled: Boolean(selectedReportId),
+    staleTime: 30_000,
+  });
+  const reports = reportsQuery.data ?? [];
+  useToastFeedback(actionError || reportsQuery.error?.message || detailQuery.error?.message || "", notice);
+
+  async function createOrRecalculate() {
+    setActionError("");
+    setNotice("");
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(reportPeriod)) {
+      setActionError("Select a valid report month.");
+      return;
+    }
+    const existing = reports.find((report) => report.report_period === reportPeriod);
+    if (existing && !window.confirm(`Recalculate ${reportMonthLabel(reportPeriod)}? This replaces the saved totals using current source records.`)) return;
+    setBusyAction("create");
+    try {
+      await createFinanceReport(reportPeriod);
+      setNotice(`${reportMonthLabel(reportPeriod)} financial report generated.`);
+      await queryClient.invalidateQueries({ queryKey: FINANCE_REPORTS_KEY });
+    } catch (cause: unknown) {
+      setActionError(cause instanceof Error ? cause.message : "Unable to generate the financial report.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function recalculate(report: FinanceReport) {
+    setActionError("");
+    setNotice("");
+    setBusyAction(report.id);
+    try {
+      await refreshFinanceReport(report.id);
+      setNotice(`${reportMonthLabel(report.report_period)} report refreshed.`);
+      await queryClient.invalidateQueries({ queryKey: FINANCE_REPORTS_KEY });
+      await queryClient.invalidateQueries({ queryKey: [...FINANCE_REPORTS_KEY, "detail", report.id] });
+    } catch (cause: unknown) {
+      setActionError(cause instanceof Error ? cause.message : "Unable to refresh the financial report.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function removeReport(report: FinanceReport) {
+    if (!window.confirm(`Delete the ${reportMonthLabel(report.report_period)} summary? Source expenses and sales will not be deleted.`)) return;
+    setActionError("");
+    setNotice("");
+    setBusyAction(report.id);
+    try {
+      await deleteFinanceReport(report.id);
+      if (selectedReportId === report.id) setSelectedReportId("");
+      setNotice(`${reportMonthLabel(report.report_period)} financial summary deleted.`);
+      await queryClient.invalidateQueries({ queryKey: FINANCE_REPORTS_KEY });
+    } catch (cause: unknown) {
+      setActionError(cause instanceof Error ? cause.message : "Unable to delete the financial report.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  const detailMetrics: Array<[string, keyof FinanceReport, boolean]> = [
+    ["Gross sales", "gross_sales", false],
+    ["Payment deductions", "payment_deductions", false],
+    ["Sales after fees", "sales_after_fees", false],
+    ["Manual expenses", "manual_expenses", false],
+    ["Rent expenses", "rent_expenses", false],
+    ["Salary expenses", "salary_expenses", false],
+    ["Total expenses", "total_expenses", false],
+    ["Commission estimate", "total_commissions", false],
+    ["Total costs", "total_costs", false],
+    ["Total profit", "total_profit", true],
+  ];
+
+  return (
+    <section className="space-y-5 rounded-2xl border border-slate-700 bg-[#102237] p-4 sm:p-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-950 text-emerald-300">
+            <CalendarDays size={20} />
+          </span>
+          <div>
+            <h2 className="text-xl font-bold text-white">Financial reports</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-300">
+              Business-wide monthly USD summaries. Commission is an estimate based on monthly sales and holidays, not saved payout records.
+            </p>
+          </div>
+        </div>
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(160px,1fr)_auto]">
+          <label className="block min-w-0">
+            <span className="sr-only">Financial report month</span>
+            <input
+              type="month"
+              value={reportPeriod}
+              onChange={(event) => setReportPeriod(event.target.value)}
+              className="min-h-11 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-base text-white outline-none focus:border-emerald-400 sm:text-sm"
+            />
+          </label>
+          <Button type="button" onClick={() => void createOrRecalculate()} disabled={busyAction !== "" || !reportPeriod} className="w-full justify-center sm:w-auto">
+            <Plus size={16} /> Generate / recalculate
+          </Button>
+        </div>
+      </header>
+
+      {reportsQuery.isPending ? (
+        <LoadingState label="Loading financial reports..." />
+      ) : reportsQuery.isError ? (
+        <div className="rounded-xl border border-rose-900 bg-rose-950/30 p-5 text-sm text-rose-200">
+          <p>Unable to load financial reports: {reportsQuery.error.message}</p>
+          <Button type="button" variant="secondary" className="mt-3" onClick={() => void reportsQuery.refetch()}>Try again</Button>
+        </div>
+      ) : reports.length === 0 ? (
+        <p className="rounded-xl border border-slate-700 p-8 text-center text-sm text-slate-300">No financial summaries yet. Choose a month to generate one.</p>
+      ) : (
+        <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          {reports.map((report) => (
+            <li key={report.id} className="min-w-0 rounded-xl border border-slate-700 bg-[#0b1828] p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="break-words text-lg font-bold text-white">{reportMonthLabel(report.report_period)}</h3>
+                  <p className="mt-1 text-xs text-slate-400">{report.start_date} – {report.end_date}</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-sm font-bold ${Number(report.total_profit) < 0 ? "bg-rose-950 text-rose-200" : "bg-emerald-950 text-emerald-200"}`}>
+                  Profit {formatCurrency(Number(report.total_profit))}
+                </span>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                {([
+                  ["Sales after fees", report.sales_after_fees],
+                  ["Expenses", report.total_expenses],
+                  ["Commission estimate", report.total_commissions],
+                  ["Total costs", report.total_costs],
+                ] as const).map(([label, amount]) => (
+                  <div key={label} className="min-w-0 rounded-lg bg-slate-900/80 p-3">
+                    <dt className="text-xs text-slate-400">{label}</dt>
+                    <dd className="mt-1 break-words font-semibold text-slate-100">{formatCurrency(Number(amount))}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-xs text-slate-400">
+                Calculated {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(report.last_calculated_at))}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-800 pt-3">
+                <Button type="button" variant="secondary" onClick={() => setSelectedReportId(report.id)} className="flex-1 justify-center">
+                  <Eye size={15} /> Details
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => void recalculate(report)} disabled={busyAction !== ""} aria-label={`Refresh ${reportMonthLabel(report.report_period)}`} className="justify-center">
+                  <RefreshCw size={15} className={busyAction === report.id ? "animate-spin" : ""} /> Refresh
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => void removeReport(report)} disabled={busyAction !== ""} aria-label={`Delete ${reportMonthLabel(report.report_period)}`} className="justify-center">
+                  <Trash2 size={15} /> Delete
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {selectedReportId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSelectedReportId("");
+        }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="finance-report-detail-title" className="max-h-[90dvh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-700 bg-[#102237] p-4 shadow-2xl sm:p-6">
+            <header className="mb-5 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Monthly financial summary</p>
+                <h2 id="finance-report-detail-title" className="mt-1 break-words text-xl font-bold text-white">
+                  {detailQuery.data ? reportMonthLabel(detailQuery.data.report_period) : "Loading report..."}
+                </h2>
+              </div>
+              <button type="button" onClick={() => setSelectedReportId("")} aria-label="Close report details" className="shrink-0 rounded-lg p-2 text-slate-300 hover:bg-slate-800"><X size={20} /></button>
+            </header>
+            {detailQuery.isPending ? (
+              <LoadingState label="Loading report details..." />
+            ) : detailQuery.isError ? (
+              <p role="alert" className="text-sm text-rose-200">{detailQuery.error.message}</p>
+            ) : detailQuery.data ? (
+              <>
+                <p className="mb-4 text-sm text-slate-300">{detailQuery.data.start_date} – {detailQuery.data.end_date}</p>
+                <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {detailMetrics.map(([label, field, highlight]) => (
+                    <div key={field} className={`min-w-0 rounded-xl p-4 ${highlight ? "bg-emerald-950/60 ring-1 ring-emerald-800" : "bg-slate-900/80"}`}>
+                      <dt className="text-sm text-slate-400">{label}</dt>
+                      <dd className={`mt-1 break-words text-lg font-bold ${highlight && Number(detailQuery.data.total_profit) < 0 ? "text-rose-300" : "text-white"}`}>
+                        {formatCurrency(Number(detailQuery.data[field]))}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            ) : null}
+          </section>
+        </div>
+      )}
+    </section>
+  );
 }
 
 export default function Reports() {
@@ -418,6 +651,7 @@ export default function Reports() {
         </>
       )}
       {reportIsFetching && !pending && <p className="text-right text-xs text-slate-400">Refreshing report data…</p>}
+      <FinancialReportsSection />
     </main>
   );
 }

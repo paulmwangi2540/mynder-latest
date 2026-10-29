@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
-import { Home, UsersRound, CircleUserRound, X, CreditCard, University, ReceiptText, UserPlus, LogOut, Pencil, Clock3, KeyRound, Banknote, ChartNoAxesCombined, ShoppingCart } from "lucide-react";
+import { Home, UsersRound, CircleUserRound, X, CreditCard, University, ReceiptText, UserPlus, LogOut, Pencil, Clock3, KeyRound, Banknote, ChartNoAxesCombined, ShoppingCart, BadgeDollarSign, Mail, Frame } from "lucide-react";
 import Logo from "../../components/shared/Logo";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -10,15 +10,20 @@ import type { AdminAudience } from "./AdminLayout";
 import useToastFeedback from "../../hooks/useToastFeedback";
 
 const links = [
+  { label: "My dashboard", href: "/staff/dashboard", Icon: Home },
+  { label: "My universities", href: "/staff/universities", Icon: University },
+  { label: "Frames", href: "/staff/frames", Icon: Frame },
   { label: "Overview", href: "/admin/dashboard", Icon: Home },
-  { label: "Users", href: "/admin/users", Icon: UsersRound },
+  { label: "Clients", href: "/admin/users", Icon: UsersRound },
   { label: "Accounts", href: "/admin/accounts", Icon: KeyRound },
-  { label: "My workspace", href: "/admin/attendance", Icon: Clock3 },
+  { label: "Time track", href: "/admin/attendance", Icon: Clock3 },
   { label: "Universities", href: "/admin/universities", Icon: University },
   { label: "Invoices", href: "/admin/invoices", Icon: ReceiptText },
   { label: "Expenses", href: "/admin/expenses", Icon: Banknote },
+  { label: "Email inventory", href: "/admin/emails", Icon: Mail },
   { label: "Reports", href: "/admin/reports", Icon: ChartNoAxesCombined },
   { label: "Staff sales", href: "/admin/staff-sales", Icon: ShoppingCart },
+  { label: "Commissions", href: "/admin/commissions", Icon: BadgeDollarSign },
   { label: "Payment plan", href: "/admin/plan", Icon: CreditCard },
   { label: "Staffs management", href: "/admin/admins", Icon: UserPlus },
 ];
@@ -33,6 +38,7 @@ type Props = {
 export default function AdminSidebar({ audience, staffShiftActive, open, onClose }: Props) {
   const admin = useAdminAuthStore((state) => state.admin);
   const superAdmin = audience === "super-admin";
+  const miniAdmin = audience === "mini-admin";
   const signOut = useAdminAuthStore((state) => state.signOut);
   // const updateProfile = useAdminAuthStore((state) => state.updateProfile);
   const navigate = useNavigate();
@@ -102,24 +108,31 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
         onClick={onClose}
         className={`admin-sidebar-backdrop fixed inset-0 z-30 bg-slate-900/40 transition-opacity xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
       />
-      <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col border-r border-slate-700 bg-[#0b1828] px-3 py-6 text-white shadow-xl transition-transform duration-200 xl:z-20 xl:w-[272px] xl:translate-x-0 xl:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} xl:visible`}>
+      <aside id="admin-sidebar" className={`safe-area-inset-y fixed inset-y-0 left-0 z-40 flex w-[min(85vw,272px)] flex-col overflow-hidden border-r border-slate-700 bg-[#0b1828] px-3 py-6 text-white shadow-xl transition-transform duration-200 xl:z-20 xl:w-[272px] xl:translate-x-0 xl:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full"} xl:visible`}>
         <div className="flex items-center justify-between px-3">
           <Logo />
           <button type="button" onClick={onClose} aria-label="Close navigation menu" className="rounded-lg p-2 text-sky-300 hover:bg-blue-50 xl:hidden">
             <X size={22} className="text-sky-300" />
           </button>
         </div>
-        <nav aria-label={superAdmin ? "Super admin navigation" : "Staff navigation"} className="mt-10 space-y-2">
+        <nav aria-label={superAdmin ? "Super admin navigation" : miniAdmin ? "Mini admin navigation" : "Staff navigation"} className="admin-sidebar-nav-scroll mt-10 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pb-4">
           {links.filter((link) =>
             superAdmin
-              ? link.href !== "/admin/attendance"
-              : link.href === "/admin/attendance" ||
-                (staffShiftActive && link.href === "/admin/accounts") ||
+              ? link.href !== "/admin/attendance" && link.href !== "/staff/dashboard" && link.href !== "/staff/frames"
+              : miniAdmin
+                ? link.href === "/admin/expenses" || link.href === "/admin/emails"
+                : link.href === "/staff/dashboard" ||
+                link.href === "/staff/universities" ||
+                link.href === "/staff/frames" ||
+                link.label === "Commissions" ||
+                link.href === "/admin/accounts" ||
+                link.href === "/admin/attendance" ||
                 (staffShiftActive && link.href === "/admin/users"),
           ).map(({ label, href, Icon }) => (
             <NavLink
               key={href}
-              to={!superAdmin && href === "/admin/attendance" ? "/staff/attendance"
+              to={!superAdmin && href === "/admin/commissions" ? "/staff/commissions"
+                : !superAdmin && href === "/admin/attendance" ? "/staff/attendance"
                 : !superAdmin && href === "/admin/users" ? "/staff/users"
                   : href}
               onClick={onClose}
@@ -129,13 +142,24 @@ export default function AdminSidebar({ audience, staffShiftActive, open, onClose
             </NavLink>
           ))}
         </nav>
+        {superAdmin && (
+          <div className="mt-3 border-t border-slate-700 pt-3">
+            <NavLink
+              to="/admin/frames"
+              onClick={onClose}
+              className={({ isActive }) => `flex items-center gap-5 rounded-xl px-4 py-3.5 text-sm font-semibold transition ${isActive ? "bg-myinder-orange text-white shadow-sm" : "text-slate-200 hover:bg-slate-800"}`}
+            >
+              <Frame size={23} className="shrink-0 text-sky-300" /> Frames
+            </NavLink>
+          </div>
+        )}
         <div className="mt-auto border-t border-slate-700 px-3 pt-4">
           <div className="flex items-center gap-3">
             <CircleUserRound size={34} className="h-12 w-12 shrink-0 text-sky-300" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-white">{admin?.name ?? "Staff"}</p>
               <p className="mt-0.5 truncate text-xs text-slate-300">
-                {superAdmin ? "Super admin" : "Staff"} · {admin?.email ?? "Account"}
+                {superAdmin ? "Super admin" : miniAdmin ? "Mini admin" : "Staff"} · {admin?.email ?? "Account"}
               </p>
             </div>
             {superAdmin && (

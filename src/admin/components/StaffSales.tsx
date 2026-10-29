@@ -7,6 +7,7 @@ import { getUniversities } from "../services/universitiesService";
 import {
   createSale,
   getSales,
+  normalizePaymentMethod,
   PAYMENT_METHODS,
   type PaymentMethod,
   type Sale,
@@ -33,7 +34,7 @@ function formatCurrency(amount: number): string {
 
 function methodIcon(method: PaymentMethod) {
   if (method === "Cash App") return Banknote;
-  if (method === "PayPal") return CreditCard;
+  if (method === "PayPal" || method === "Stripe") return CreditCard;
   if (method === "Apple Pay") return Apple;
   return Wallet;
 }
@@ -90,8 +91,10 @@ export default function StaffSales({
       PAYMENT_METHODS.map((method) => [method, { amount: 0, count: 0 }]),
     );
     for (const sale of dailySales) {
-      const current = totals.get(sale.payment_method) ?? { amount: 0, count: 0 };
-      totals.set(sale.payment_method, {
+      const method = normalizePaymentMethod(sale.payment_method);
+      if (!method) continue;
+      const current = totals.get(method) ?? { amount: 0, count: 0 };
+      totals.set(method, {
         amount: current.amount + sale.amount,
         count: current.count + 1,
       });

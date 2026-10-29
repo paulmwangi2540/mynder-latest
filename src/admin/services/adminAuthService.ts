@@ -33,6 +33,12 @@ export interface AdminListPage {
   totalPages: number;
 }
 
+export interface AdminPasswordResetResult {
+  adminId: string;
+  message: string;
+  revokedSessions: number;
+}
+
 type ApiRecord = Record<string, unknown>;
 
 export class AdminApiError extends Error {
@@ -321,6 +327,48 @@ export async function createAdmin(
   return getAdmin(payload);
 }
 
+export async function createSuperAdmin(
+  admin: Omit<CreateAdminInput, "schoolIds">,
+  accessToken: string,
+): Promise<AdminAccount> {
+  const payload = await requestAdminApi(
+    "/api/admin/super-admins",
+    {
+      name: admin.name.trim(),
+      email: admin.email.trim(),
+      password: admin.password,
+    },
+    accessToken,
+  );
+  const created = getAdmin(payload);
+  const role = created.role.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (role !== "super_admin" && role !== "superadmin") {
+    throw new Error("The API did not return a super-admin account.");
+  }
+  return created;
+}
+
+export async function createMiniAdmin(
+  admin: Omit<CreateAdminInput, "schoolIds">,
+  accessToken: string,
+): Promise<AdminAccount> {
+  const payload = await requestAdminApi(
+    "/api/admin/mini-admins",
+    {
+      name: admin.name.trim(),
+      email: admin.email.trim(),
+      password: admin.password,
+    },
+    accessToken,
+  );
+  const created = getAdmin(payload);
+  const role = created.role.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (role !== "mini_admin" && role !== "miniadmin") {
+    throw new Error("The API did not return a mini-admin account.");
+  }
+  return created;
+}
+
 export async function getAdmins(
   accessToken: string,
   page: number,
@@ -376,4 +424,44 @@ export async function updateAdminSchools(
     "PATCH",
   );
   return getAdmin(payload);
+}
+
+export async function resetAdminPassword(
+  id: string,
+  password: string,
+  accessToken: string,
+): Promise<AdminPasswordResetResult> {
+  const payload = await requestAdminApi(
+    `/api/admin/admins/${encodeURIComponent(id)}/password`,
+    { password },
+    accessToken,
+    "PATCH",
+  );
+  const body = asRecord(payload);
+  const data = asRecord(body.data);
+  const result = asRecord(body.result);
+  const response = asRecord(body.response);
+  const adminId = body.admin_id ?? data.admin_id ?? result.admin_id ?? response.admin_id;
+  const message = body.message ?? data.message ?? result.message ?? response.message;
+  const revokedSessions =
+    body.revoked_sessions ??
+    data.revoked_sessions ??
+    result.revoked_sessions ??
+    response.revoked_sessions;
+
+  if (
+    (typeof adminId !== "string" && typeof adminId !== "number") ||
+    typeof message !== "string" ||
+    typeof revokedSessions !== "number" ||
+    !Number.isInteger(revokedSessions) ||
+    revokedSessions < 0
+  ) {
+    throw new Error("The password reset API returned an invalid response.");
+  }
+
+  return {
+    adminId: String(adminId),
+    message,
+    revokedSessions,
+  };
 }

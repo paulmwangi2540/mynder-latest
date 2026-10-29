@@ -1,7 +1,8 @@
 import { Navigate } from "react-router-dom";
-import { useAdminAuthStore, isSuperAdmin } from "../stores/adminAuthStore";
+import { useAdminAuthStore, isMiniAdmin, isSuperAdmin } from "../stores/adminAuthStore";
 import SuperAdminLayout from "../roles/SuperAdminLayout";
 import StaffLayout from "../roles/StaffLayout";
+import MiniAdminLayout from "../roles/MiniAdminLayout";
 
 export default function RoleAdminLayout() {
   const admin = useAdminAuthStore((state) => state.admin);
@@ -9,5 +10,7 @@ export default function RoleAdminLayout() {
   if (!admin) return <Navigate to="/admin/login" replace />;
   return isSuperAdmin(admin)
     ? <SuperAdminLayout />
-    : <StaffLayout />;
+    : isMiniAdmin(admin)
+      ? <MiniAdminLayout />
+      : <StaffLayout />;
 }

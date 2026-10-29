@@ -14,7 +14,7 @@ import {
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Logo from "../../components/shared/Logo";
-import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
+import { getAdminHomePath, useAdminAuthStore } from "../stores/adminAuthStore";
 import useToastFeedback from "../../hooks/useToastFeedback";
 
 interface LocationState {
@@ -37,7 +37,7 @@ export default function AdminLogin() {
   useToastFeedback(error);
 
   if (accessToken && expiresAt !== null && expiresAt > Date.now()) {
-    return <Navigate to={from ?? (isSuperAdmin(admin) ? "/admin/dashboard" : "/staff/attendance")} replace />;
+    return <Navigate to={from ?? getAdminHomePath(admin)} replace />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -48,7 +48,7 @@ export default function AdminLogin() {
     try {
       await signIn(email, password);
       const signedInAdmin = useAdminAuthStore.getState().admin;
-      navigate(from ?? (isSuperAdmin(signedInAdmin) ? "/admin/dashboard" : "/staff/attendance"), { replace: true });
+      navigate(from ?? getAdminHomePath(signedInAdmin), { replace: true });
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "Unable to sign in.");
     } finally {
@@ -136,6 +136,9 @@ export default function AdminLogin() {
             {submitting ? "Signing in..." : "Sign in"}
           </Button>
         </form>
+        <p className="mt-5 text-center text-xs leading-relaxed text-slate-400">
+          Can’t access your account? Contact a super admin to set a replacement password. Password recovery is handled directly by a super admin; no reset link or email is sent.
+        </p>
       </section>
     </main>
   );

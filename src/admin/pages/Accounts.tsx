@@ -9,6 +9,7 @@ import {
   getAccount,
   getAccounts,
   importAccounts,
+  ACCOUNT_STATUSES,
   updateAccount,
   type AccountFields,
   type ManagedAccount,
@@ -21,12 +22,22 @@ const PAGE_SIZE = 20;
 const EMPTY_FIELDS: AccountFields = {
   university: "",
   handle: "",
+  status: "setup",
+  verified: false,
   email: "",
   emailPassword: "",
   accountPassword: "",
   emailRecoveryNo: "",
   accountRecoveryNo: "",
   followers: "",
+};
+
+const ACCOUNT_STATUS_LABELS: Record<(typeof ACCOUNT_STATUSES)[number], string> = {
+  done: "Done",
+  closed: "Closed",
+  setup: "Set up",
+  appealing: "Appealing",
+  followers: "Followers",
 };
 
 function validateAccount(fields: AccountFields): string {
@@ -82,10 +93,18 @@ function AccountField({
   );
 }
 
-function SecretValue({ value, label }: { value: string; label: string }) {
+function SecretValue({
+  value,
+  label,
+  compact = false,
+}: {
+  value: string;
+  label: string;
+  compact?: boolean;
+}) {
   const [visible, setVisible] = useState(false);
   return (
-    <div className="flex min-w-32 items-center gap-2">
+    <div className={`flex items-center gap-1.5 ${compact ? "min-w-0" : "min-w-32"}`}>
       <span className="min-w-0 truncate font-mono text-xs text-myinder-navy">
         {value ? (visible ? value : "••••••••") : "—"}
       </span>
@@ -104,6 +123,20 @@ function SecretValue({ value, label }: { value: string; label: string }) {
   );
 }
 
+function VerificationBadge({ verified }: { verified: boolean }) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+        verified
+          ? "bg-emerald-100 text-emerald-800"
+          : "bg-rose-100 text-rose-700"
+      }`}
+    >
+      {verified ? "Verified" : "Not verified"}
+    </span>
+  );
+}
+
 export default function Accounts() {
   const admin = useAdminAuthStore((state) => state.admin);
   const accessToken = useAdminAuthStore((state) => state.accessToken);
@@ -114,6 +147,8 @@ export default function Accounts() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [adminFilter, setAdminFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [verifiedFilter, setVerifiedFilter] = useState("");
   const [ownerId, setOwnerId] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,8 +179,14 @@ export default function Accounts() {
 
   const loadAccounts = useCallback(async (refresh = false) => {
     const requestId = ++accountsRequestId.current;
+    const staffAdminId = admin?.id;
     if (!accessToken) {
       setListError("Your admin session has expired. Please sign in again.");
+      setLoading(false);
+      return;
+    }
+    if (!superAdmin && !staffAdminId) {
+      setListError("Unable to identify your staff account. Please sign in again.");
       setLoading(false);
       return;
     }
@@ -157,7 +198,9 @@ export default function Accounts() {
         page,
         limit: PAGE_SIZE,
         search,
-        ...(superAdmin && adminFilter ? { adminId: adminFilter } : {}),
+        adminId: superAdmin ? adminFilter || undefined : undefined,
+        status: ACCOUNT_STATUSES.find((status) => status === statusFilter),
+        verified: verifiedFilter === "" ? undefined : verifiedFilter === "true",
       });
       if (requestId !== accountsRequestId.current) return;
       setItems(result.items);
@@ -172,7 +215,7 @@ export default function Accounts() {
         setRefreshing(false);
       }
     }
-  }, [accessToken, adminFilter, page, search, superAdmin]);
+  }, [accessToken, admin?.id, adminFilter, page, search, statusFilter, verifiedFilter, superAdmin]);
 
   useEffect(() => {
     void loadAccounts();
@@ -221,6 +264,8 @@ export default function Accounts() {
       setFields({
         university: details.university,
         handle: details.handle,
+        status: details.status,
+        verified: details.verified,
         email: details.email,
         emailPassword: details.emailPassword,
         accountPassword: details.accountPassword,
@@ -335,6 +380,10 @@ export default function Accounts() {
       </select>
     </label>
   );
+  const visibleItems = items.filter((account) =>
+    (!statusFilter || account.status === statusFilter) &&
+    (verifiedFilter === "" || account.verified === (verifiedFilter === "true")),
+  );
 
   return (
     <main className="mx-auto max-w-[1500px] space-y-6">
@@ -349,7 +398,7 @@ export default function Accounts() {
           <p className="mt-1 text-sm text-slate-300">
             {superAdmin
               ? "Manage staff-owned account records, credentials, and assignments."
-              : "Manage the accounts assigned to you."}
+              : "Create and manage the account records assigned to you."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -357,14 +406,18 @@ export default function Accounts() {
             <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             Refresh
           </Button>
-          <Button variant="secondary" onClick={() => { setShowImport((open) => !open); setActionError(""); }}>
-            <Upload size={16} /> Import JSON
-          </Button>
+          {superAdmin && (
+            <>
+              <Button variant="secondary" onClick={() => { setShowImport((open) => !open); setActionError(""); }}>
+                <Upload size={16} /> Import JSON
+              </Button>
+            </>
+          )}
           <Button onClick={openCreate}><Plus size={17} /> Add account</Button>
         </div>
       </div>
 
-      {showImport && (
+      {superAdmin && showImport && (
         <form onSubmit={handleImport} className="space-y-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -411,6 +464,30 @@ export default function Accounts() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <AccountField label="University" value={fields.university} onChange={(university) => setFields((current) => ({ ...current, university }))} maxLength={200} required />
                 <AccountField label="Handle" value={fields.handle} onChange={(handle) => setFields((current) => ({ ...current, handle }))} maxLength={150} required />
+                <label className="block min-w-0">
+                  <span className="mb-1.5 block text-sm font-semibold text-myinder-navy">Status</span>
+                  <select
+                    value={fields.status}
+                    onChange={(event) => {
+                      const status = ACCOUNT_STATUSES.find((candidate) => candidate === event.target.value);
+                      if (status) setFields((current) => ({ ...current, status }));
+                    }}
+                    className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50 sm:text-sm"
+                  >
+                    {ACCOUNT_STATUSES.map((status) => (
+                      <option key={status} value={status}>{ACCOUNT_STATUS_LABELS[status]}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-myinder-navy">
+                  <input
+                    type="checkbox"
+                    checked={fields.verified}
+                    onChange={(event) => setFields((current) => ({ ...current, verified: event.target.checked }))}
+                    className="h-4 w-4 rounded border-blue-300"
+                  />
+                  Verified
+                </label>
                 <AccountField label="Email" type="email" value={fields.email} onChange={(email) => setFields((current) => ({ ...current, email }))} maxLength={320} />
                 <AccountField label="Email password" type="password" value={fields.emailPassword} onChange={(emailPassword) => setFields((current) => ({ ...current, emailPassword }))} maxLength={1024} />
                 <AccountField label="Account password" type="password" value={fields.accountPassword} onChange={(accountPassword) => setFields((current) => ({ ...current, accountPassword }))} maxLength={1024} />
@@ -436,9 +513,9 @@ export default function Accounts() {
               <p className="text-xs text-myinder-muted">Page {page} of {totalPages}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap">
             {superAdmin && (
-              <label>
+              <label className="min-w-0">
                 <span className="sr-only">Filter accounts by staff owner</span>
                 <select
                   value={adminFilter}
@@ -450,7 +527,32 @@ export default function Accounts() {
                 </select>
               </label>
             )}
-            <label className="relative block w-full sm:w-64">
+            <label className="min-w-0">
+              <span className="sr-only">Filter accounts by status</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
+                aria-label="Filter accounts by status"
+                className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 sm:min-w-40 sm:text-sm"
+              >
+                <option value="">All statuses</option>
+                {ACCOUNT_STATUSES.map((status) => <option key={status} value={status}>{ACCOUNT_STATUS_LABELS[status]}</option>)}
+              </select>
+            </label>
+            <label className="min-w-0">
+              <span className="sr-only">Filter accounts by verification</span>
+              <select
+                value={verifiedFilter}
+                onChange={(event) => { setVerifiedFilter(event.target.value); setPage(1); }}
+                aria-label="Filter accounts by verification"
+                className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 sm:min-w-40 sm:text-sm"
+              >
+                <option value="">All verification</option>
+                <option value="true">Verified</option>
+                <option value="false">Not verified</option>
+              </select>
+            </label>
+            <label className="relative block min-w-0 sm:w-64">
               <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-myinder-muted" />
               <input
                 type="search"
@@ -466,77 +568,115 @@ export default function Accounts() {
 
         {listError ? (
           <div className="p-8 text-center">
+            <p role="alert" className="mx-auto max-w-2xl text-sm text-rose-700">
+              Accounts could not be loaded: {listError}
+            </p>
             <Button variant="secondary" className="mt-4" onClick={() => void loadAccounts(true)}>Try again</Button>
           </div>
         ) : loading ? (
           <LoadingState label="Loading account records..." />
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <div className="p-10 text-center">
             <UsersRound size={32} className="mx-auto text-slate-300" />
-            <p className="mt-3 font-semibold text-myinder-navy">{search ? "No accounts match your search." : "No assigned accounts yet."}</p>
+            <p className="mt-3 font-semibold text-myinder-navy">
+              {search || statusFilter || verifiedFilter
+                ? "No accounts match these filters."
+                : "No assigned accounts yet."}
+            </p>
           </div>
         ) : (
           <>
-              <div className="grid gap-3 p-3 sm:hidden">
-                {items.map((account) => (
-                  <article key={account.id} className="group relative overflow-hidden rounded-xl border border-blue-100 bg-white p-4">
-                    <p className="truncate pr-16 font-semibold text-myinder-navy">{account.university}</p>
+              <div className="grid gap-3 p-3 xl:hidden">
+                {visibleItems.map((account) => (
+                  <article key={account.id} className="overflow-hidden rounded-xl border border-blue-100 bg-white p-4">
+                    <p className="truncate font-semibold text-myinder-navy">{account.university}</p>
                     <p className="mt-1 truncate text-sm text-myinder-muted">@{account.handle}</p>
-                    {superAdmin && (
-                      <p className="mt-2 truncate text-xs text-myinder-muted">
-                        Owner: {admins.find((item) => item.id === account.adminId)?.name ?? account.adminId}
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <p className="text-sm text-myinder-navy">
+                        <span className="block text-xs font-medium text-myinder-muted">Status</span>
+                        {ACCOUNT_STATUS_LABELS[account.status]}
                       </p>
-                    )}
+                      <p className="text-sm text-myinder-navy">
+                        <span className="block text-xs font-medium text-myinder-muted">Verification</span>
+                        <span className="mt-1 block"><VerificationBadge verified={account.verified} /></span>
+                      </p>
+                    </div>
+                    <p className="mt-3 truncate text-xs text-myinder-muted">
+                      Assigned to: {superAdmin
+                        ? admins.find((item) => item.id === account.adminId)?.name ?? "Staff member"
+                        : admin?.name ?? "You"}
+                    </p>
                     <button
                       type="button"
                       onClick={() => setDetailsAccount(account)}
-                      className="absolute bottom-3 right-3 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-myinder-blue opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                      className="mt-4 flex min-h-10 w-full items-center justify-center rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-myinder-blue transition-colors hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-100"
                     >
-                      View all
+                      View
                     </button>
                   </article>
                 ))}
               </div>
-              <div className="overflow-x-auto">
-                <table className="hidden w-full min-w-[1120px] text-left text-sm sm:table">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">University / Handle</th>
-                    {superAdmin && <th className="px-4 py-3">Owner</th>}
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Email password</th>
-                    <th className="px-4 py-3">Account password</th>
-                    <th className="px-4 py-3">Recovery / followers</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-50">
-                  {items.map((account) => (
-                    <tr key={account.id} className="hover:bg-blue-50/40">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-myinder-navy">{account.university}</p>
-                        <p className="mt-0.5 text-xs text-myinder-muted">@{account.handle}</p>
-                      </td>
-                      {superAdmin && <td className="px-4 py-3 text-xs text-myinder-muted">{admins.find((item) => item.id === account.adminId)?.name ?? account.adminId}</td>}
-                      <td className="px-4 py-3 text-myinder-navy">{account.email || "—"}</td>
-                      <td className="px-4 py-3"><SecretValue value={account.emailPassword} label="email password" /></td>
-                      <td className="px-4 py-3"><SecretValue value={account.accountPassword} label="account password" /></td>
-                      <td className="px-4 py-3 text-xs text-myinder-muted">
-                        <p>Email: {account.emailRecoveryNo || "—"}</p>
-                        <p>Account: {account.accountRecoveryNo || "—"}</p>
-                        <p>Followers: {account.followers || "—"}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => void openEdit(account)} disabled={Boolean(loadingAccountId)} aria-label={`Edit ${account.handle}`} title="Edit account" className="rounded-lg p-2 text-myinder-blue hover:bg-blue-50 disabled:opacity-50"><Pencil size={17} /></button>
-                          <button type="button" onClick={() => void removeAccount(account)} aria-label={`Delete ${account.handle}`} title="Delete account" className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={17} /></button>
-                        </div>
-                      </td>
+              <div className="hidden xl:block">
+                <table className="w-full table-fixed text-left text-xs">
+                  <colgroup>
+                    <col className={superAdmin ? "w-[13%]" : "w-[17%]"} />
+                    <col className={superAdmin ? "w-[7%]" : "w-[8%]"} />
+                    <col className={superAdmin ? "w-[8%]" : "w-[9%]"} />
+                    {superAdmin && <col className="w-[9%]" />}
+                    <col className={superAdmin ? "w-[19%]" : "w-[22%]"} />
+                    <col className={superAdmin ? "w-[11%]" : "w-[10%]"} />
+                    <col className={superAdmin ? "w-[11%]" : "w-[10%]"} />
+                    <col className={superAdmin ? "w-[8%]" : "w-[10%]"} />
+                    <col className={superAdmin ? "w-[14%]" : "w-[13%]"} />
+                  </colgroup>
+                  <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-2 py-3">Account</th>
+                      <th className="px-2 py-3">Status</th>
+                      <th className="px-2 py-3">Verified</th>
+                      {superAdmin && (
+                        <th className="px-2 py-3">Owner</th>
+                      )}
+                      <th className="px-2 py-3">Login details</th>
+                      <th className="px-2 py-3">Email recovery</th>
+                      <th className="px-2 py-3">Account recovery</th>
+                      <th className="px-2 py-3">Followers</th>
+                      <th className="px-2 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-blue-50">
+                    {visibleItems.map((account) => (
+                      <tr key={account.id} className="align-top hover:bg-blue-50/40">
+                        <td className="break-words px-2 py-3">
+                          <p className="font-semibold text-myinder-navy">{account.university}</p>
+                          <p className="mt-0.5 break-all text-[11px] text-myinder-muted">@{account.handle}</p>
+                        </td>
+                        <td className="break-words px-2 py-3 text-myinder-navy">{ACCOUNT_STATUS_LABELS[account.status]}</td>
+                        <td className="px-2 py-3"><VerificationBadge verified={account.verified} /></td>
+                        {superAdmin && (
+                          <td className="break-words px-2 py-3 text-myinder-muted">
+                            {admins.find((item) => item.id === account.adminId)?.name ?? "Staff member"}
+                          </td>
+                        )}
+                        <td className="min-w-0 px-2 py-3">
+                          <p className="truncate text-myinder-navy" title={account.email}>{account.email || "—"}</p>
+                          <div className="mt-1"><SecretValue value={account.emailPassword} label="email password" compact /></div>
+                          <div className="mt-1"><SecretValue value={account.accountPassword} label="account password" compact /></div>
+                        </td>
+                        <td className="break-all px-2 py-3 text-[11px] text-myinder-muted">{account.emailRecoveryNo || "—"}</td>
+                        <td className="break-all px-2 py-3 text-[11px] text-myinder-muted">{account.accountRecoveryNo || "—"}</td>
+                        <td className="break-words px-2 py-3 text-[11px] text-myinder-muted">{account.followers || "—"}</td>
+                        <td className="px-2 py-3">
+                          <div className="flex justify-end gap-1">
+                            <button type="button" onClick={() => void openEdit(account)} disabled={Boolean(loadingAccountId)} aria-label={`Edit ${account.handle}`} title="Edit account" className="rounded-lg p-2 text-myinder-blue hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>
+                            <button type="button" onClick={() => void removeAccount(account)} aria-label={`Delete ${account.handle}`} title="Delete account" className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             {totalPages > 1 && (
               <div className="flex justify-center border-t border-blue-50 px-5 py-4">
                 <Pagination page={page} totalPages={totalPages} onChange={setPage} />
@@ -574,12 +714,23 @@ export default function Accounts() {
               </button>
             </div>
             <dl className="grid gap-4 sm:grid-cols-2">
-              {superAdmin && (
-                <div className="min-w-0">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Assigned staff</dt>
-                  <dd className="mt-1 break-words text-sm text-myinder-navy">{admins.find((item) => item.id === detailsAccount.adminId)?.name ?? detailsAccount.adminId}</dd>
-                </div>
-              )}
+            <div className="min-w-0">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Assigned staff</dt>
+              <dd className="mt-1 break-words text-sm text-myinder-navy">
+                {superAdmin
+                  ? admins.find((item) => item.id === detailsAccount.adminId)?.name ?? "Staff member"
+                  : admin?.name ?? "You"}
+              </dd>
+            </div>
+              <div className="min-w-0">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Status</dt>
+                <dd className="mt-1 break-words text-sm text-myinder-navy">{ACCOUNT_STATUS_LABELS[detailsAccount.status]}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Verification</dt>
+                <dd className="mt-1"><VerificationBadge verified={detailsAccount.verified} /></dd>
+              </div>
+              <>
               <div className="min-w-0">
                 <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Email</dt>
                 <dd className="mt-1 break-words text-sm text-myinder-navy">{detailsAccount.email || "—"}</dd>
@@ -604,14 +755,7 @@ export default function Accounts() {
                 <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Followers</dt>
                 <dd className="mt-1 break-words text-sm text-myinder-navy">{detailsAccount.followers || "—"}</dd>
               </div>
-              <div className="min-w-0">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Created</dt>
-                <dd className="mt-1 break-words text-sm text-myinder-navy">{detailsAccount.createdAt || "—"}</dd>
-              </div>
-              <div className="min-w-0">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-myinder-muted">Last updated</dt>
-                <dd className="mt-1 break-words text-sm text-myinder-navy">{detailsAccount.updatedAt || "—"}</dd>
-              </div>
+              </>
             </dl>
             <div className="mt-6 flex justify-end gap-2 border-t border-blue-50 pt-4">
               <Button type="button" variant="secondary" onClick={() => setDetailsAccount(null)}>Close</Button>

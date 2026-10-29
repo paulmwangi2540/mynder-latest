@@ -262,11 +262,24 @@ export async function generateAdminUserPoster(
     throw new Error("The user's university could not be resolved.");
   }
 
-  onProgress?.("loading-photo");
   const photoBlob = await fetchSelectedPhoto(selectedPhoto);
-  const photo = await loadImage(photoBlob);
+  return generatePosterFromImage(photoBlob, getPosterColor(university).color, onProgress);
+}
+
+export async function generatePosterFromImage(
+  imageBlob: Blob,
+  color = DEFAULT_POSTER_COLOR,
+  onProgress?: (progress: PosterProgress) => void,
+): Promise<Blob> {
+  if (!imageBlob.type.startsWith("image/")) {
+    throw new Error("Choose a valid image file to create a frame.");
+  }
+  onProgress?.("loading-photo");
+  const photo = await loadImage(imageBlob);
 
   onProgress?.("drawing-poster");
-  const { color } = getPosterColor(university);
+  if (!/^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(color)) {
+    throw new Error("Choose a valid frame color.");
+  }
   return canvasToBlob(drawPoster(photo, color));
 }

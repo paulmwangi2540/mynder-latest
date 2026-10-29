@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, CalendarClock, Clock3, Coffee, LogIn, LogOut, RefreshCw } from "lucide-react";
 import Button from "../../components/ui/Button";
@@ -11,10 +11,13 @@ import {
   type ShiftInterval,
   type TimeShift,
 } from "../services/timeTrackingService";
+import { getSales } from "../services/salesService";
+import { getPreviousNairobiDate } from "../services/previousSalesReview";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
 import useToastFeedback from "../../hooks/useToastFeedback";
-
-const StaffSales = lazy(() => import("../components/StaffSales"));
+import PreviousSalesReview from "../components/PreviousSalesReview";
+import { openStaffSaleForm } from "../components/StaffSaleLauncher";
+import usePreviousSalesReviewStatus from "../hooks/usePreviousSalesReviewStatus";
 
 const TIMEZONE = "Africa/Nairobi";
 const BASE_KEY = ["admin-time-tracking"] as const;
@@ -200,6 +203,18 @@ export default function Attendance() {
     enabled: Boolean(adminId),
     staleTime: 30_000,
   });
+  const salesQuery = useQuery({
+    queryKey: ["admin-sales", adminId ?? ""],
+    queryFn: getSales,
+    enabled: Boolean(adminId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const previousDay = getPreviousNairobiDate();
+  const previousDayReviewed = usePreviousSalesReviewStatus(adminId, previousDay);
+  const previousDaySales = (salesQuery.data ?? []).filter((sale) => sale.sale_date === previousDay);
+  const previousSalesReady =
+    salesQuery.isSuccess && previousDaySales.length > 0 && previousDayReviewed;
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(interval);
@@ -233,12 +248,23 @@ export default function Attendance() {
   useToastFeedback(
     actionError ||
       currentQuery.error?.message ||
-      historyQuery.error?.message,
+      historyQuery.error?.message ||
+      salesQuery.error?.message,
     notice,
   );
 
   async function runAction(nextAction: ShiftAction) {
     if (action) return;
+    if (nextAction === "clock-in" && !previousSalesReady) {
+      setActionError(
+        salesQuery.isError
+          ? "Unable to verify previous-day sales. Refresh and try again."
+          : previousDaySales.length === 0
+            ? "Add at least one sale for the previous day before clocking in."
+            : "Confirm the previous day's sales before clocking in.",
+      );
+      return;
+    }
     setAction(nextAction);
     setActionError("");
     setNotice("");
@@ -274,7 +300,11 @@ export default function Attendance() {
     <Button
       type="button"
       onClick={() => void runAction(nextAction)}
-      disabled={Boolean(action) || resetReached}
+      disabled={
+        Boolean(action) ||
+        resetReached ||
+        (nextAction === "clock-in" && !previousSalesReady)
+      }
       className="min-w-36"
     >
       {action === nextAction ? <RefreshCw size={17} className="animate-spin" /> : <Icon size={17} />}
@@ -305,6 +335,14 @@ export default function Attendance() {
           Refresh
         </Button>
       </header>
+
+      <PreviousSalesReview
+        adminId={adminId}
+        sales={salesQuery.data ?? []}
+        loading={salesQuery.isPending}
+        error={salesQuery.error?.message}
+        onAddSale={openStaffSaleForm}
+      />
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
         <article className="rounded-2xl border border-slate-700 bg-[#0c1b2b] p-5 shadow-sm sm:p-7">
@@ -386,10 +424,6 @@ export default function Attendance() {
           </div>
         </article>
       </section>
-
-      <Suspense fallback={<LoadingState label="Loading sales..." />}>
-        <StaffSales admin={admin} canRecord={shift?.status === "active"} />
-      </Suspense>
 
       <section className="overflow-hidden rounded-2xl border border-slate-700 bg-[#0c1b2b]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 px-5 py-4">

@@ -24,7 +24,7 @@ import {
   type SalaryPayment,
   type SalaryPaymentInput,
 } from "../services/expensesService";
-import { isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
+import { isMiniAdmin, isSuperAdmin, useAdminAuthStore } from "../stores/adminAuthStore";
 import useToastFeedback from "../../hooks/useToastFeedback";
 
 const EXPENSES_KEY = ["admin-expenses"] as const;
@@ -153,7 +153,9 @@ function Field({
 
 export default function Expenses() {
   const adminId = useAdminAuthStore((state) => state.admin?.id);
+  const currentAdmin = useAdminAuthStore((state) => state.admin);
   const accessToken = useAdminAuthStore((state) => state.accessToken);
+  const miniAdmin = isMiniAdmin(currentAdmin);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(EMPTY_MANUAL);
@@ -189,6 +191,7 @@ export default function Expenses() {
       }
       return admins;
     },
+    enabled: isSuperAdmin(currentAdmin),
     staleTime: 60_000,
   });
 
@@ -479,13 +482,22 @@ export default function Expenses() {
                 <Field label="Exchange rate (KES per USD)" type="number" min="0.000001" step="0.000001" value={manualForm.exchangeRate} onChange={(exchangeRate) => setManualForm((form) => ({ ...form, exchangeRate }))} required />
                 <p className="text-xs text-slate-400 sm:col-span-2">Leave USD amount blank to calculate it from the KES amount and exchange rate.</p>
                 <label className="block min-w-0">
-                  <span className="mb-1.5 block text-sm font-semibold text-myinder-navy">Related staff (optional)</span>
-                  <select value={manualForm.adminId} onChange={(event) => setManualForm((form) => ({ ...form, adminId: event.target.value }))} className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 sm:text-sm">
-                    <option value="">No staff assigned</option>
-                    {(adminsQuery.data ?? []).filter((person) => !isSuperAdmin(person)).map((person) => (
-                      <option key={person.id} value={person.id}>{person.name} · {person.email}</option>
-                    ))}
-                  </select>
+                  <span className="mb-1.5 block text-sm font-semibold text-myinder-navy">{miniAdmin ? "Related staff ID (optional)" : "Related staff (optional)"}</span>
+                  {miniAdmin ? (
+                    <input
+                      type="text"
+                      value={manualForm.adminId}
+                      onChange={(event) => setManualForm((form) => ({ ...form, adminId: event.target.value }))}
+                      className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 sm:text-sm"
+                    />
+                  ) : (
+                    <select value={manualForm.adminId} onChange={(event) => setManualForm((form) => ({ ...form, adminId: event.target.value }))} className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 sm:text-sm">
+                      <option value="">No staff assigned</option>
+                      {(adminsQuery.data ?? []).filter((person) => !isSuperAdmin(person)).map((person) => (
+                        <option key={person.id} value={person.id}>{person.name} · {person.email}</option>
+                      ))}
+                    </select>
+                  )}
                 </label>
                 <label className="block min-w-0 sm:col-span-2">
                   <span className="mb-1.5 block text-sm font-semibold text-myinder-navy">Note (optional)</span>
@@ -523,18 +535,28 @@ export default function Expenses() {
             <form onSubmit={submitSalary} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block min-w-0 sm:col-span-2">
-                  <span className="mb-1.5 block text-sm font-semibold text-myinder-navy">Staff member</span>
-                  <select
-                    value={salaryForm.adminId}
-                    onChange={(event) => setSalaryForm((form) => ({ ...form, adminId: event.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 disabled:opacity-60 sm:text-sm"
-                  >
-                    <option value="">Select staff member</option>
-                    {(adminsQuery.data ?? []).filter((person) => !isSuperAdmin(person)).map((person) => (
-                      <option key={person.id} value={person.id}>{person.name} · {person.email}</option>
-                    ))}
-                  </select>
+                  <span className="mb-1.5 block text-sm font-semibold text-myinder-navy">{miniAdmin ? "Staff account ID" : "Staff member"}</span>
+                  {miniAdmin ? (
+                    <input
+                      type="text"
+                      value={salaryForm.adminId}
+                      onChange={(event) => setSalaryForm((form) => ({ ...form, adminId: event.target.value }))}
+                      required
+                      className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 sm:text-sm"
+                    />
+                  ) : (
+                    <select
+                      value={salaryForm.adminId}
+                      onChange={(event) => setSalaryForm((form) => ({ ...form, adminId: event.target.value }))}
+                      required
+                      className="w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-base text-myinder-navy outline-none focus:border-blue-300 disabled:opacity-60 sm:text-sm"
+                    >
+                      <option value="">Select staff member</option>
+                      {(adminsQuery.data ?? []).filter((person) => !isSuperAdmin(person)).map((person) => (
+                        <option key={person.id} value={person.id}>{person.name} · {person.email}</option>
+                      ))}
+                    </select>
+                  )}
                 </label>
                 <Field label="Salary period" type="month" value={salaryForm.salaryPeriod} onChange={(salaryPeriod) => setSalaryForm((form) => ({ ...form, salaryPeriod }))} required />
                 <Field label="Amount (KES)" type="number" min="0.01" step="0.01" value={salaryForm.amountKes} onChange={(amountKes) => setSalaryForm((form) => ({ ...form, amountKes }))} required />

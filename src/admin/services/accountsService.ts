@@ -5,6 +5,8 @@ export interface ManagedAccount {
   adminId: string;
   university: string;
   handle: string;
+  status: AccountStatus;
+  verified: boolean;
   email: string;
   emailPassword: string;
   accountPassword: string;
@@ -14,6 +16,16 @@ export interface ManagedAccount {
   createdAt: string;
   updatedAt: string;
 }
+
+export const ACCOUNT_STATUSES = [
+  "done",
+  "closed",
+  "setup",
+  "appealing",
+  "followers",
+] as const;
+
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 export type AccountFields = Omit<
   ManagedAccount,
@@ -59,10 +71,53 @@ function readText(record: ApiRecord, key: string, required = false): string {
   return "";
 }
 
-function mapAccount(value: unknown): ManagedAccount {
+function readTextFrom(
+  record: ApiRecord,
+  keys: string[],
+  required = false,
+): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string") return value;
+    if (typeof value === "number") return String(value);
+  }
+  if (required) throw new Error(`The accounts API returned an invalid ${keys[0]}.`);
+  return "";
+}
+
+function readStatus(value: unknown): AccountStatus {
+  if (typeof value !== "string") {
+    throw new Error("The accounts API returned an invalid status.");
+  }
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "");
+  const aliases: Record<string, AccountStatus> = {
+    done: "done",
+    closed: "closed",
+    cloced: "closed",
+    setup: "setup",
+    appealing: "appealing",
+    followers: "followers",
+  };
+  const status = aliases[normalized];
+  if (!status) throw new Error("The accounts API returned an unsupported status.");
+  return status;
+}
+
+function readBooleanFrom(record: ApiRecord, keys: string[]): boolean {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "boolean") return value;
+    if (value === 1 || value === "1" || value === "true") return true;
+    if (value === 0 || value === "0" || value === "false") return false;
+  }
+  throw new Error(`The accounts API response is missing ${keys.join(" or ")}.`);
+}
+
+function mapAccount(value: unknown, fallbackAdminId?: string): ManagedAccount {
   const record = accountRecord(value);
   const id = record.id ?? record.account_id ?? record.uuid;
-  const adminId = record.admin_id ?? record.adminId;
+  const adminId = record.admin_id ?? record.adminId ?? record.owner_id ??
+    record.assigned_to ?? fallbackAdminId;
   if (
     (typeof id !== "string" && typeof id !== "number") ||
     (typeof adminId !== "string" && typeof adminId !== "number")
@@ -75,11 +130,13 @@ function mapAccount(value: unknown): ManagedAccount {
     adminId: String(adminId),
     university: readText(record, "university", true),
     handle: readText(record, "handle", true),
-    email: readText(record, "email"),
-    emailPassword: readText(record, "emailPassword"),
-    accountPassword: readText(record, "accountPassword"),
-    emailRecoveryNo: readText(record, "emailRecoveryNo"),
-    accountRecoveryNo: readText(record, "accountRecoveryNo"),
+    status: readStatus(record.status ?? record.account_status),
+    verified: readBooleanFrom(record, ["verified", "is_verified"]),
+    email: readTextFrom(record, ["email"]),
+    emailPassword: readTextFrom(record, ["emailPassword", "email_password"]),
+    accountPassword: readTextFrom(record, ["accountPassword", "account_password"]),
+    emailRecoveryNo: readTextFrom(record, ["emailRecoveryNo", "email_recovery_no"]),
+    accountRecoveryNo: readTextFrom(record, ["accountRecoveryNo", "account_recovery_no"]),
     followers: readText(record, "followers"),
     createdAt: readText(record, "created_at") || readText(record, "createdAt"),
     updatedAt: readText(record, "updated_at") || readText(record, "updatedAt"),
@@ -98,8 +155,12 @@ async function readPayload(response: Response): Promise<unknown> {
 
 function errorMessage(payload: unknown, status: number): string {
   const root = asRecord(payload);
-  const nested = asRecord(root.response);
-  const message = root.message ?? nested.message ?? root.error;
+  const response = root.response;
+  const nested = asRecord(response);
+  const message = root.message ??
+    nested.message ??
+    (typeof response === "string" ? response : undefined) ??
+    root.error;
   if (typeof message === "string" && message.trim()) return message.trim();
   if (Array.isArray(message)) {
     const messages = message.filter((item): item is string => typeof item === "string");
@@ -174,6 +235,8 @@ export async function getAccounts(options: {
   limit: number;
   search: string;
   adminId?: string;
+  status?: AccountStatus;
+  verified?: boolean;
 }): Promise<AccountPage> {
   const query = new URLSearchParams({
     page: String(options.page),
@@ -181,11 +244,13 @@ export async function getAccounts(options: {
   });
   if (options.search.trim()) query.set("search", options.search.trim());
   if (options.adminId) query.set("admin_id", options.adminId);
+  if (options.status) query.set("status", options.status);
+  if (options.verified !== undefined) query.set("verified", String(options.verified));
 
   const payload = await request(`?${query.toString()}`, "GET");
   const info = getPageInfo(payload, options.page);
   return {
-    items: getRows(payload).map(mapAccount),
+    items: getRows(payload).map((row) => mapAccount(row, options.adminId)),
     page: info.page,
     totalPages: info.totalPages,
   };
@@ -251,6 +316,6 @@ export async function importAccounts(options: {
     imported,
     skipped,
     adminId: String(adminId),
-    items: rawItems.map(mapAccount),
+    items: rawItems.map((item) => mapAccount(item, String(adminId))),
   };
 }

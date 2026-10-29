@@ -3,18 +3,25 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
+import StaffSaleLauncher from "../components/StaffSaleLauncher";
 import { useUsers } from "../hooks/useUsers";
+import usePreviousSalesReviewStatus from "../hooks/usePreviousSalesReviewStatus";
+import { getPreviousNairobiDate } from "../services/previousSalesReview";
+import { getSales } from "../services/salesService";
 import { getCurrentShift } from "../services/timeTrackingService";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
 
-export type AdminAudience = "super-admin" | "staff";
+export type AdminAudience = "super-admin" | "mini-admin" | "staff";
 
 export default function AdminLayout({ audience }: { audience: AdminAudience }) {
   const [search, setSearch] = useState("");
   const [university, setUniversity] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const admin = useAdminAuthStore((state) => state.admin);
   const adminId = useAdminAuthStore((state) => state.admin?.id);
+  const previousDay = getPreviousNairobiDate();
+  const previousDayReviewed = usePreviousSalesReviewStatus(adminId, previousDay);
   const currentShiftQuery = useQuery({
     queryKey: ["admin-time-tracking", adminId ?? "", "current"],
     queryFn: getCurrentShift,
@@ -23,17 +30,27 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
     refetchInterval: (query) => query.state.data ? 5_000 : 30_000,
     refetchOnWindowFocus: true,
   });
+  const staffSalesQuery = useQuery({
+    queryKey: ["admin-sales", adminId ?? ""],
+    queryFn: getSales,
+    enabled: audience === "staff" && Boolean(adminId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
   const staffShiftActive =
     currentShiftQuery.data?.status === "active" ||
     currentShiftQuery.data?.status === "paused";
   const isAttendancePage =
     location.pathname === "/admin/attendance" ||
     location.pathname === "/staff/attendance";
+  const isStaffDashboardPage = location.pathname === "/staff/dashboard";
+  const isStaffAccountsPage = location.pathname === "/admin/accounts";
+  const isStaffFramesPage = location.pathname === "/staff/frames";
   const isUsersPage =
     location.pathname === "/admin/users" ||
     location.pathname === "/staff/users";
   const { users } = useUsers({
-    enabled: audience !== "staff" || staffShiftActive,
+    enabled: audience === "super-admin" || (audience === "staff" && staffShiftActive),
   });
   const universities = [...new Set(users.map((user) => user.university).filter((name) => name.trim()))]
     .sort((left, right) => left.localeCompare(right));
@@ -45,6 +62,9 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
   if (
     audience === "staff" &&
     !isAttendancePage &&
+    !isStaffDashboardPage &&
+    !isStaffAccountsPage &&
+    !isStaffFramesPage &&
     !staffShiftActive
   ) {
     return <Navigate to="/admin/attendance" replace />;
@@ -78,7 +98,7 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
           university={university}
           universities={universities}
           onUniversityChange={setUniversity}
-          showSearch={audience === "super-admin" || isUsersPage}
+          showSearch={audience === "super-admin" || (audience === "staff" && isUsersPage)}
           showUniversityFilter={isUsersPage}
           showExport={isUsersPage}
           superAdmin={audience === "super-admin"}
@@ -90,6 +110,18 @@ export default function AdminLayout({ audience }: { audience: AdminAudience }) {
           <Outlet context={{ search, university, setSearch, setUniversity, route: location.pathname }} />
         </div>
       </div>
+      {audience === "staff" && admin && (
+        <StaffSaleLauncher
+          admin={admin}
+          canRecord={currentShiftQuery.data?.status === "active"}
+          previousDay={previousDay}
+          allowPreviousDaySale={
+            staffSalesQuery.isSuccess &&
+            !previousDayReviewed &&
+            !(staffSalesQuery.data ?? []).some((sale) => sale.sale_date === previousDay)
+          }
+        />
+      )}
     </div>
   );
 }

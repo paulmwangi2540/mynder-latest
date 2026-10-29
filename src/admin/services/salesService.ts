@@ -6,10 +6,29 @@ export const PAYMENT_METHODS = [
   "Venmo",
   "PayPal",
   "Apple Pay",
-  "Other",
+  "Stripe",
 ] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export function normalizePaymentMethod(value: string): PaymentMethod | null {
+  const normalized = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  const knownMethods: Record<string, PaymentMethod> = {
+    "apple pay": "Apple Pay",
+    applepay: "Apple Pay",
+    "cash app": "Cash App",
+    cashapp: "Cash App",
+    card: "Stripe",
+    cards: "Stripe",
+    "credit card": "Stripe",
+    "debit card": "Stripe",
+    stripe: "Stripe",
+    paypal: "PayPal",
+    venmo: "Venmo",
+    zelle: "Zelle",
+  };
+  return knownMethods[normalized] ?? null;
+}
 
 export interface Sale {
   id: string;
@@ -132,5 +151,8 @@ export async function getSales(): Promise<Sale[]> {
 }
 
 export async function createSale(input: CreateSaleInput): Promise<Sale> {
+  if (!PAYMENT_METHODS.includes(input.payment_method)) {
+    throw new Error("Select one of the supported payment methods.");
+  }
   return mapSale(await request("POST", input));
 }

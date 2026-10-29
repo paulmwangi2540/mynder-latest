@@ -7,6 +7,9 @@ export interface UniversityRecord {
   slug?: string;
   profileName?: string;
   customColor?: string;
+  template?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UniversityInput {
@@ -97,6 +100,9 @@ function mapUniversity(value: unknown): UniversityRecord {
   const customColor =
     record.custom_color ?? record.customColor;
   const slug = record.slug;
+  const template = record.template;
+  const createdAt = record.created_at ?? record.createdAt;
+  const updatedAt = record.updated_at ?? record.updatedAt;
 
   if (
     (typeof id !== "string" && typeof id !== "number") ||
@@ -119,6 +125,15 @@ function mapUniversity(value: unknown): UniversityRecord {
       : {}),
     ...(typeof customColor === "string"
       ? { customColor }
+      : {}),
+    ...(typeof template === "string" && template.trim()
+      ? { template: template.trim() }
+      : {}),
+    ...(typeof createdAt === "string" && createdAt.trim()
+      ? { createdAt: createdAt.trim() }
+      : {}),
+    ...(typeof updatedAt === "string" && updatedAt.trim()
+      ? { updatedAt: updatedAt.trim() }
       : {}),
   };
 }

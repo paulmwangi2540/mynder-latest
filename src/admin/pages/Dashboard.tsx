@@ -18,7 +18,7 @@ import DashboardRevenueChart, {
 import DashboardSummaryCards from "../components/dashboard/DashboardSummaryCards";
 import { useUsers } from "../hooks/useUsers";
 import { getAdminPaymentStatuses, getInvoices, type UserInvoice } from "../services/invoicesService";
-import { getSales, PAYMENT_METHODS, type Sale } from "../services/salesService";
+import { getSales, normalizePaymentMethod, PAYMENT_METHODS, type Sale } from "../services/salesService";
 import { getUniversities } from "../services/universitiesService";
 import { useAdminAuthStore } from "../stores/adminAuthStore";
 import LoadingState from "../../components/shared/LoadingState";
@@ -75,28 +75,6 @@ function getInvoiceStatus(invoice: UserInvoice, paymentStatuses: Map<string, Sta
   return (invoice.paymentId && paymentStatuses.get(invoice.paymentId)) || invoice.status;
 }
 
-function getPaymentMethodLabel(value: string): string {
-  const normalized = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-  const knownMethods: Record<string, string> = {
-    "apple pay": "Apple Pay",
-    applepay: "Apple Pay",
-    "cash app": "Cash App",
-    cashapp: "Cash App",
-    card: "Card",
-    cards: "Card",
-    "credit card": "Card",
-    "debit card": "Card",
-    stripe: "Card",
-    other: "Other",
-    paypal: "PayPal",
-    unspecified: "Unspecified",
-    venmo: "Venmo",
-    zelle: "Zelle",
-  };
-  return knownMethods[normalized] ??
-    (normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Unspecified");
-}
-
 function getPaymentMethodMix(
   invoices: UserInvoice[],
   paymentStatuses: Map<string, Status>,
@@ -107,24 +85,17 @@ function getPaymentMethodMix(
   for (const invoice of invoices) {
     const status = getInvoiceStatus(invoice, paymentStatuses);
     if (status !== "successful" && status !== "refunded") continue;
-    const method = getPaymentMethodLabel(invoice.paymentMethod ?? "Unspecified");
-    directCounts.set(method, (directCounts.get(method) ?? 0) + 1);
+    directCounts.set("Stripe", (directCounts.get("Stripe") ?? 0) + 1);
   }
   for (const sale of sales) {
-    const method = getPaymentMethodLabel(sale.payment_method);
+    const method = normalizePaymentMethod(sale.payment_method);
+    if (!method) continue;
     staffCounts.set(method, (staffCounts.get(method) ?? 0) + 1);
   }
 
   const directTotal = [...directCounts.values()].reduce((sum, count) => sum + count, 0);
   const staffTotal = [...staffCounts.values()].reduce((sum, count) => sum + count, 0);
-  const methods = new Set([
-    ...PAYMENT_METHODS.map(getPaymentMethodLabel),
-    ...directCounts.keys(),
-    ...staffCounts.keys(),
-  ]);
-  const rows = [...methods]
-    .filter((method) => (directCounts.get(method) ?? 0) > 0 || (staffCounts.get(method) ?? 0) > 0)
-    .map((method, index) => ({
+  const rows = PAYMENT_METHODS.map((method, index) => ({
       method,
       directCount: directCounts.get(method) ?? 0,
       staffCount: staffCounts.get(method) ?? 0,

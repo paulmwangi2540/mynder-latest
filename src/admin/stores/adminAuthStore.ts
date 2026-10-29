@@ -29,6 +29,26 @@ export function isSuperAdmin(admin: AdminAccount | null): boolean {
   return role === "super_admin" || role === "superadmin";
 }
 
+export function isMiniAdmin(admin: AdminAccount | null): boolean {
+  const role = typeof admin?.role === "string"
+    ? admin.role.trim().toLowerCase().replace(/[\s-]+/g, "_")
+    : "";
+  return role === "mini_admin" || role === "miniadmin";
+}
+
+export function isStaffAdmin(admin: AdminAccount | null): boolean {
+  const role = typeof admin?.role === "string"
+    ? admin.role.trim().toLowerCase().replace(/[\s-]+/g, "_")
+    : "";
+  return role === "admin";
+}
+
+export function getAdminHomePath(admin: AdminAccount | null): string {
+  if (isSuperAdmin(admin)) return "/admin/dashboard";
+  if (isMiniAdmin(admin)) return "/admin/expenses";
+  return "/staff/dashboard";
+}
+
 function clearAdminUserData(adminId: string) {
   queryClient.removeQueries({ queryKey: userQueryKeys.all });
   void clearPersistedImageQueries(adminId).catch((error: unknown) => {

@@ -46,6 +46,16 @@ body {
   padding-top: max(1.5rem, env(safe-area-inset-top));
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
+.safe-area-bottom {
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+.admin-sidebar-nav-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.admin-sidebar-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 ::selection { background: #dbeafe; color: #12366f; }
